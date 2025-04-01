@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { styles } from '../styles/sharedStyles';
+import ErrorHandler from '../components/ErrorHandler';
 
 const CredentialUploadForm = ({ onClose, onUploadSuccess }) => {
   const [title, setTitle] = useState('');
