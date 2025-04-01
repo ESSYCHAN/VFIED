@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const { admin } = require('./firebase/admin');
+const verificationRoutes = require('./routes/verification');
 
 // Load environment variables
 dotenv.config();
@@ -15,6 +16,7 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use('/api/verification', verificationRoutes);
 
 // Authentication middleware
 const authMiddleware = require('./middleware/auth');
@@ -25,6 +27,7 @@ const credentialRoutes = require('./routes/credentials');
 const userRoutes = require('./routes/users');
 const aiServiceRoutes = require('./routes/ai-service');
 const aiRecruitmentRoutes = require('./routes/ai-recruitment');
+const verificationRoutes = require('./routes/verification');  // Add this line
 
 // API routes
 app.use('/api/auth', authRoutes);
@@ -32,6 +35,7 @@ app.use('/api/credentials', credentialRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/ai', aiServiceRoutes);
 app.use('/api/ai-recruitment', aiRecruitmentRoutes);
+app.use('/api/verification', verificationRoutes);  // Add this line
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
