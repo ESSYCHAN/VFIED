@@ -4,10 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
     "start": "next start",
-    "lint": "next lint"
-  },
+    "lint": "next lint",
+    "compile": "hardhat compile",
+    "postcompile": "node copy-artifacts.js",
+    "build": "npm run compile && cd frontend && npm run build"
+
+  }, 
   "dependencies": {
     "@headlessui/react": "^1.7.17",
     "@heroicons/react": "^1.0.6",

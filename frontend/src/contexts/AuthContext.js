@@ -11,7 +11,7 @@ import {
 import { auth, db } from '../lib/firebase';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { ethers } from 'ethers';
-import RequisitionNFT from '../../../artifacts/contracts/Requisition.sol/RequisitionNFT.json';
+import RequisitionNFT from '../artifacts/contracts/RequisitionNFT.sol/RequisitionNFT.json';
 
 const AuthContext = createContext();
 

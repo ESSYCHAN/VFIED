@@ -5,6 +5,6 @@ module.exports = {
   paths: {
     sources: "./contracts",
     cache: "./cache",
-    artifacts: "./artifacts"
+    artifacts: "./src/artifacts",
   }
 };
