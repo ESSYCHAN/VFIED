@@ -53,3 +53,15 @@ async function setAdminRole(uid) {
 
 // If using as a script, call the function with the UID
 // setAdminRole('your-user-uid-here');
+
+// Example to set a role
+async function setUserRole(uid, role) {
+  await admin.auth().setCustomUserClaims(uid, { role: role });
+  console.log(`Role ${role} set for user ${uid}`);
+}
+
+// To check roles
+async function getUserRole(uid) {
+  const user = await admin.auth().getUser(uid);
+  return user.customClaims?.role || 'user';
+}
