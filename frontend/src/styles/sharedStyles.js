@@ -308,3 +308,75 @@ export const styles = {
       marginBottom: '12px'
     }
   };
+  // src/styles/sharedStyles.js
+export const container = {
+  maxWidth: '1200px',
+  margin: '0 auto',
+  padding: '2rem'
+};
+
+export const header = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: '2rem'
+};
+
+export const section = {
+  background: 'white',
+  borderRadius: '8px',
+  padding: '1.5rem',
+  marginBottom: '1.5rem',
+  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+};
+
+export const editButton = {
+  background: '#4f46e5',
+  color: 'white',
+  border: 'none',
+  padding: '0.5rem 1rem',
+  borderRadius: '4px',
+  cursor: 'pointer',
+  fontWeight: '500',
+  '&:hover': {
+    background: '#4338ca'
+  }
+};
+
+export const candidateGrid = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+  gap: '1rem',
+  marginTop: '1rem'
+};
+
+export const candidateCard = {
+  background: 'white',
+  borderRadius: '8px',
+  padding: '1rem',
+  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+};
+
+export const skillTag = {
+  display: 'inline-block',
+  background: '#e0e7ff',
+  color: '#4f46e5',
+  padding: '0.25rem 0.5rem',
+  borderRadius: '4px',
+  marginRight: '0.5rem',
+  marginBottom: '0.5rem',
+  fontSize: '0.875rem'
+};
+
+export const viewButton = {
+  background: '#4f46e5',
+  color: 'white',
+  border: 'none',
+  padding: '0.5rem 1rem',
+  borderRadius: '4px',
+  cursor: 'pointer',
+  marginTop: '1rem',
+  '&:hover': {
+    background: '#4338ca'
+  }
+};
