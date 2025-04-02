@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { styles } from '../styles/sharedStyles';
 import ErrorHandler from '../components/ErrorHandler';
+import { analyzeDocumentWithAI } from '../services/aiService';
 
 const CredentialUploadForm = ({ onClose, onUploadSuccess }) => {
   const [title, setTitle] = useState('');
@@ -18,6 +19,9 @@ const CredentialUploadForm = ({ onClose, onUploadSuccess }) => {
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [analysisStep, setAnalysisStep] = useState('upload'); // upload, analyzing, complete
   const { currentUser } = useAuth();
+
+  
+  
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -72,78 +76,28 @@ const CredentialUploadForm = ({ onClose, onUploadSuccess }) => {
     
     try {
       setIsSubmitting(true);
+      setAnalysisStep('processing');
+      
+      // Simulate document preprocessing step
+      await new Promise(resolve => setTimeout(resolve, 800));
       setAnalysisStep('analyzing');
       
-      // Simulate AI analysis processing steps
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Call your AI service
+      const analysisResult = await analyzeDocumentWithAI(file, type);
       
-      // Extract file extension to determine document type
-      const fileExtension = file.name.split('.').pop().toLowerCase();
+      // Simulate skill extraction step
+      setAnalysisStep('extracting');
+      await new Promise(resolve => setTimeout(resolve, 600));
       
-      // Generate different mock analysis based on selected credential type and file extension
-      let mockAnalysis = {
-        title: '',
-        issuer: '',
-        dateIssued: '',
-        description: '',
-        skills: []
-      };
-      
-      if (type === 'education') {
-        mockAnalysis = {
-          title: fileExtension === 'pdf' ? 'Bachelor of Science in Computer Science' : 'Master of Business Administration',
-          issuer: fileExtension === 'pdf' ? 'Stanford University' : 'Harvard Business School',
-          dateIssued: new Date(Date.now() - Math.random() * 94608000000).toISOString().split('T')[0], // Random date in last 3 years
-          description: fileExtension === 'pdf' 
-            ? 'Computer Science degree with focus on software engineering and artificial intelligence.'
-            : 'MBA with specialization in technology management and entrepreneurship.',
-          skills: ['Research', 'Critical Thinking', 'Data Analysis', fileExtension === 'pdf' ? 'Programming' : 'Business Strategy']
-        };
-      } else if (type === 'work') {
-        mockAnalysis = {
-          title: fileExtension === 'pdf' ? 'Senior Software Engineer' : 'Product Manager',
-          issuer: fileExtension === 'pdf' ? 'Google Inc.' : 'Microsoft Corporation',
-          dateIssued: new Date(Date.now() - Math.random() * 94608000000).toISOString().split('T')[0],
-          description: fileExtension === 'pdf'
-            ? 'Led development of cloud-based applications using modern JavaScript frameworks and microservices architecture.'
-            : 'Managed product lifecycle for enterprise software solutions, coordinating between engineering, design, and marketing teams.',
-          skills: ['Leadership', 'Communication', fileExtension === 'pdf' ? 'Software Development' : 'Product Strategy', 'Team Management']
-        };
-      } else if (type === 'certificate') {
-        mockAnalysis = {
-          title: fileExtension === 'pdf' ? 'AWS Certified Developer' : 'Google Cloud Professional Architect',
-          issuer: fileExtension === 'pdf' ? 'Amazon Web Services' : 'Google Cloud',
-          dateIssued: new Date(Date.now() - Math.random() * 47304000000).toISOString().split('T')[0], // Random date in last 1.5 years
-          description: fileExtension === 'pdf'
-            ? 'Professional certification for designing and developing applications on the AWS platform.'
-            : 'Advanced certification for designing, developing, and managing cloud architecture on Google Cloud Platform.',
-          skills: [fileExtension === 'pdf' ? 'AWS' : 'GCP', 'Cloud Architecture', 'Infrastructure as Code']
-        };
-      } else if (type === 'skill') {
-        mockAnalysis = {
-          title: fileExtension === 'pdf' ? 'Advanced JavaScript Programming' : 'Data Science with Python',
-          issuer: fileExtension === 'pdf' ? 'Mozilla Developer Network' : 'DataCamp',
-          dateIssued: new Date(Date.now() - Math.random() * 31536000000).toISOString().split('T')[0], // Random date in last year
-          description: fileExtension === 'pdf'
-            ? 'Advanced proficiency in JavaScript including modern ES6+ features, async programming, and framework development.'
-            : 'Expertise in data analysis, visualization, and machine learning using Python and its scientific computing libraries.',
-          skills: [fileExtension === 'pdf' ? 'JavaScript' : 'Python', 'Problem Solving', fileExtension === 'pdf' ? 'Web Development' : 'Machine Learning']
-        };
-      }
-      
-      // Simulate progressive analysis
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      setAiAnalysis(mockAnalysis);
+      setAiAnalysis(analysisResult);
       setAnalysisStep('complete');
       
       // Pre-fill form with AI extracted data
-      setTitle(mockAnalysis.title);
-      setIssuer(mockAnalysis.issuer);
-      setDateIssued(mockAnalysis.dateIssued);
-      setDescription(mockAnalysis.description);
-      setSkills(mockAnalysis.skills);
-      
+      setTitle(analysisResult.title || '');
+      setIssuer(analysisResult.issuer || '');
+      setDateIssued(analysisResult.dateIssued || '');
+      setDescription(analysisResult.description || '');
+      setSkills(analysisResult.skills || []);
     } catch (err) {
       console.error("AI analysis failed:", err);
       setError("AI analysis failed: " + err.message);
@@ -269,7 +223,38 @@ const CredentialUploadForm = ({ onClose, onUploadSuccess }) => {
               {isSubmitting ? 'Analyzing...' : 'Analyze with AI'}
             </button>
           )}
-          
+          {file && analysisStep === 'processing' && (
+            <div style={{ 
+              padding: '16px', 
+              backgroundColor: '#f0f9ff', 
+              borderRadius: '4px', 
+              marginTop: '12px',
+              textAlign: 'center'
+            }}>
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ fontSize: '24px', marginBottom: '8px' }}>📄</div>
+                <p style={{ fontWeight: '500', marginBottom: '4px' }}>Processing document</p>
+                <p style={{ fontSize: '14px', color: '#6b7280' }}>Preparing your document for analysis...</p>
+              </div>
+            </div>
+          )}
+
+          {file && analysisStep === 'extracting' && (
+            <div style={{ 
+              padding: '16px', 
+              backgroundColor: '#f0f9ff', 
+              borderRadius: '4px', 
+              marginTop: '12px',
+              textAlign: 'center'
+            }}>
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ fontSize: '24px', marginBottom: '8px' }}>⚡</div>
+                <p style={{ fontWeight: '500', marginBottom: '4px' }}>Identifying skills</p>
+                <p style={{ fontSize: '14px', color: '#6b7280' }}>Mapping document content to our skills database...</p>
+              </div>
+            </div>
+          )}
+                    
           {file && analysisStep === 'analyzing' && (
             <div style={{ 
               padding: '16px', 
@@ -281,7 +266,7 @@ const CredentialUploadForm = ({ onClose, onUploadSuccess }) => {
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '24px', marginBottom: '8px' }}>🔍</div>
                 <p style={{ fontWeight: '500', marginBottom: '4px' }}>AI is analyzing your document</p>
-                <p style={{ fontSize: '14px', color: '#6b7280' }}>This may take a few moments...</p>
+                <p style={{ fontSize: '14px', color: '#6b7280' }}>Extracting credential information...</p>
               </div>
             </div>
           )}
