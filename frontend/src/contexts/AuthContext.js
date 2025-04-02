@@ -115,16 +115,18 @@ export function AuthProvider({ children }) {
       });
       setWalletAddress(accounts[0]);
       
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const provider = new ethers.BrowserProvider(window.ethereum);
+
       setWeb3Provider(provider);
 
       const network = await provider.getNetwork();
       setChainId(network.chainId);
 
+      const signer = await provider.getSigner();
       const contract = new ethers.Contract(
         process.env.NEXT_PUBLIC_REQUISITION_CONTRACT_ADDRESS,
         RequisitionNFT.abi,
-        provider.getSigner()
+        signer
       );
       setRequisitionContract(contract);
 

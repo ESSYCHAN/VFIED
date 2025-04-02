@@ -6,11 +6,8 @@
     "dev": "next dev",
     "start": "next start",
     "lint": "next lint",
-    "compile": "hardhat compile",
-    "postcompile": "node copy-artifacts.js",
-    "build": "npm run compile && cd frontend && npm run build"
-
-  }, 
+    "build": "next build"
+  },
   "dependencies": {
     "@headlessui/react": "^1.7.17",
     "@heroicons/react": "^1.0.6",
@@ -24,6 +21,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-firebase-hooks": "^5.1.1",
+    "react-router-dom": "^7.4.1",
     "tailwind-merge": "^3.0.2",
     "tailwindcss-animate": "^1.0.7"
   },

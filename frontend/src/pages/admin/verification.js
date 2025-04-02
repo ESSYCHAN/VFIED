@@ -5,7 +5,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import Layout from '../../components/Layout';
 import Head from 'next/head';
 import ErrorHandler from '../../components/ErrorHandler';
-import { useRouter } from 'next/router';  // Add this import
 export default function VerificationAdmin() {
   const router = useRouter();
   const { currentUser, userClaims, getIdToken } = useAuth();
