@@ -1,3 +1,4 @@
+// src/lib/firebase/firebaseAdmin.js
 import admin from 'firebase-admin';
 
 if (!admin.apps.length) {
@@ -10,7 +11,8 @@ if (!admin.apps.length) {
   });
 }
 
-export async function verifyIdToken(token) {
-  const decodedToken = await admin.auth().verifyIdToken(token);
-  return decodedToken;
-}
+export const verifyIdToken = (token) => admin.auth().verifyIdToken(token);
+// export async function verifyIdToken(token) {
+//   const decodedToken = await admin.auth().verifyIdToken(token);
+//   return decodedToken;
+// }
