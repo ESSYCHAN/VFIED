@@ -326,24 +326,6 @@ const handleRetry = async () => {
 </button>
 
 
-
-// // Main Dashboard Component
-// export default function Dashboard() {
-//   const { currentUser } = useAuth();
-//   const [credentials, setCredentials] = useState([]);
-//   const [loading, setLoading] = useState(true);
-//   const [showUploader, setShowUploader] = useState(false);
-//   const [stats, setStats] = useState({
-//     total: 0,
-//     verified: 0,
-//     pending: 0,
-//     rejected: 0
-//   });
-//   const [activeFilter, setActiveFilter] = useState('all');
-//   const [activeTypeFilter, setActiveTypeFilter] = useState('all');
-//   const [error, setError] = useState(null);
-//   const
-
 // Main Dashboard Component
 export default function Dashboard() {
   const { currentUser } = useAuth();
@@ -394,6 +376,17 @@ export default function Dashboard() {
 
   useEffect(() => {
     console.log("Dashboard component initialized");
+
+    const handleLogout = async () => {
+      try {
+        await logout(); // Your logout function from AuthContext
+        router.push('/'); // Go back to landing page
+      } catch (error) {
+        console.error("Failed to log out", error);
+      }
+    };
+    
+
     
     // Modify the fetchCredentials function in the useEffect hook:
 

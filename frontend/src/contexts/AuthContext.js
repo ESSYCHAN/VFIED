@@ -12,6 +12,10 @@ import { auth, db } from '../lib/firebase';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { ethers } from 'ethers';
 import RequisitionNFT from '../artifacts/contracts/RequisitionNFT.sol/RequisitionNFT.json';
+import { setPersistence, browserSessionPersistence } from 'firebase/auth';
+
+// Set auth persistence to session only
+setPersistence(auth, browserSessionPersistence);
 
 const AuthContext = createContext();
 

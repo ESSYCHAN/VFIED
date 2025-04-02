@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../contexts/AuthContext';
 import Head from 'next/head';
@@ -7,26 +7,38 @@ import Link from 'next/link';
 export default function Home() {
   const { currentUser } = useAuth();
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // If user is already logged in, redirect to dashboard
-    if (currentUser) {
-      router.push('/dashboard');
-    }
+    // Set a small delay to ensure authentication state is properly loaded
+    const checkAuth = setTimeout(() => {
+      setLoading(false);
+      // If user is already logged in, redirect to dashboard
+      if (currentUser) {
+        router.push('/dashboard');
+      }
+    }, 500);
+    
+    return () => clearTimeout(checkAuth);
   }, [currentUser, router]);
 
+  // Show a loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  // Only show the landing page if not authenticated
   return (
-    
     <div className="min-h-screen bg-gray-50">
       <Head>
         <title>VFied - Your Credentials, Your Super-Power</title>
         <meta name="description" content="Verify once, apply never. Let employers discover you based on your verified achievements." />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      // Add this to a page to test if Tailwind is working
-<div className="p-4 m-4 bg-blue-500 text-white rounded-lg">
-  This should be a blue box with white text and rounded corners.
-</div>
 
       {/* Navigation */}
       <nav className="bg-white shadow-sm">
