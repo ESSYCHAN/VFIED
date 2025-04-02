@@ -3,7 +3,6 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const { admin } = require('./firebase/admin');
-const verificationRoutes = require('./routes/verification');
 
 // Load environment variables
 dotenv.config();
@@ -16,10 +15,9 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/api/verification', verificationRoutes);
 
 // Authentication middleware
-const authMiddleware = require('./middleware/auth');
+const { auth } = require('./middleware/auth');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -27,7 +25,7 @@ const credentialRoutes = require('./routes/credentials');
 const userRoutes = require('./routes/users');
 const aiServiceRoutes = require('./routes/ai-service');
 const aiRecruitmentRoutes = require('./routes/ai-recruitment');
-const verificationRoutes = require('./routes/verification');  // Add this line
+const verificationRoutes = require('./routes/verification');
 
 // API routes
 app.use('/api/auth', authRoutes);
@@ -35,12 +33,30 @@ app.use('/api/credentials', credentialRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/ai', aiServiceRoutes);
 app.use('/api/ai-recruitment', aiRecruitmentRoutes);
-app.use('/api/verification', verificationRoutes);  // Add this line
+app.use('/api/verification', verificationRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'OK', timestamp: new Date() });
 });
+
+// Validate required environment variables
+const requiredEnvVars = [
+  'FIREBASE_DATABASE_URL',
+  'ANTHROPIC_API_KEY',
+  // Add other required environment variables
+];
+
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+if (missingEnvVars.length > 0) {
+  console.error('Error: The following required environment variables are missing:');
+  missingEnvVars.forEach(varName => console.error(`- ${varName}`));
+  
+  // In development, warn but continue. In production, exit.
+  if (process.env.NODE_ENV === 'production') {
+    process.exit(1);
+  }
+}
 
 // Error handling middleware
 app.use((err, req, res, next) => {
