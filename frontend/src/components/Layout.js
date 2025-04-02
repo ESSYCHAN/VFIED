@@ -1,10 +1,9 @@
-// Updated Layout.js with Job Requisitions navigation
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
 import { styles } from '../styles/sharedStyles';
 
-// UserRoleToggle component
+// UserRoleToggle component added directly to the Layout file
 const UserRoleToggle = () => {
   const router = useRouter();
   const currentPath = router.pathname;
@@ -65,10 +64,6 @@ export default function Layout({ children }) {
       console.error("Failed to log out", error);
     }
   };
-
-  // Check if user has employer/recruiter role
-  const isEmployerOrRecruiter = currentUser && 
-    (currentUser.role === 'employer' || currentUser.role === 'recruiter' || currentUser.role === 'admin');
   
   return (
     <div style={styles.container}>
@@ -85,34 +80,29 @@ export default function Layout({ children }) {
             }}
           >
             Dashboard
+            </Link>
+  
+            {/* Add this link for job requisitions, visible only to employers/recruiters */}
+            {currentUser && (currentUser.role === 'employer' || currentUser.role === 'recruiter') && (
+              <Link 
+                href="/employer/dashboard" 
+                style={{
+                  ...styles.navLink, 
+                  ...(router.pathname.startsWith('/employer/') ? styles.activeNavLink : {})
+                }}
+              >
+                Job Requisitions
+              </Link>
+            )}
+            
+            <Link 
+              href="/profile" 
+              style={{
+                ...styles.navLink, 
+                ...(router.pathname === '/profile' ? styles.activeNavLink : {})
+              }}
+            >
           </Link>
-          
-          {/* Only show requisitions link to employers/recruiters */}
-          {isEmployerOrRecruiter && (
-            <Link 
-              href="/requisitions" 
-              style={{
-                ...styles.navLink, 
-                ...(router.pathname.startsWith('/requisitions') ? styles.activeNavLink : {})
-              }}
-            >
-              Job Requisitions
-            </Link>
-          )}
-          
-          {/* Admin verification link */}
-          {currentUser && (currentUser.role === 'admin' || currentUser.role === 'verifier') && (
-            <Link 
-              href="/admin/verification" 
-              style={{
-                ...styles.navLink, 
-                ...(router.pathname.startsWith('/admin/verification') ? styles.activeNavLink : {})
-              }}
-            >
-              Verification Admin
-            </Link>
-          )}
-          
           <Link 
             href="/profile" 
             style={{
