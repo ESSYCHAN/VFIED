@@ -1,5 +1,8 @@
 // server/routes/auth.js or create a new file like server/scripts/setAdminRole.js
 const { admin } = require('../firebase/admin');
+// setAdminRole();
+const uid = '2aojHJy8E9hYDl9Go9qIsaapVFX2';
+setUserRole(uid, 'employer');
 
 // Option 1: Create an API endpoint (secured, for use from your app)
 router.post('/set-admin-role', authMiddleware, async (req, res) => {
@@ -52,7 +55,7 @@ async function setAdminRole(uid) {
 }
 
 // If using as a script, call the function with the UID
-// setAdminRole('your-user-uid-here');
+// setAdminRole('2aojHJy8E9hYDl9Go9qIsaapVFX2');
 
 // Example to set a role
 async function setUserRole(uid, role) {

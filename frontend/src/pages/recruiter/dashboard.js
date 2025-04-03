@@ -487,6 +487,7 @@ const SkillsAssessmentResult = ({ assessment, onClose }) => {
 // Main Recruiter Dashboard Component
 export default function RecruiterDashboard() {
   const { currentUser } = useAuth();
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [jobRequirements, setJobRequirements] = useState(null);
   const [candidateMatches, setCandidateMatches] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -513,6 +514,23 @@ export default function RecruiterDashboard() {
       setLoading(false);
     }
   };
+
+  const forceTokenRefresh = async () => {
+    if (!currentUser) return;
+    
+    try {
+      setIsRefreshing(true);
+      // Force token refresh
+      await currentUser.getIdToken(true);
+      window.location.reload();
+    } catch (error) {
+      console.error("Error refreshing token:", error);
+      alert("Error refreshing claims: " + error.message);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+  
 
   const handleAssessCandidate = async (candidateId) => {
     try {
@@ -786,6 +804,28 @@ export default function RecruiterDashboard() {
           )}
         </div>
       )}
+      <div style={{
+  margin: '10px 0',
+  padding: '15px',
+  backgroundColor: '#ffebee',
+  borderRadius: '4px'
+}}>
+  <p>Role not working? Try refreshing your authentication token:</p>
+  <button 
+    onClick={forceTokenRefresh}
+    disabled={isRefreshing}
+    style={{
+      padding: '8px 16px',
+      backgroundColor: '#5a45f8',
+      color: 'white', 
+      border: 'none',
+      borderRadius: '4px',
+      cursor: 'pointer'
+    }}
+  >
+    {isRefreshing ? 'Refreshing...' : 'Refresh Auth Token'}
+  </button>
+</div>
 
 
     </Layout>

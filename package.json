@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "4.9.3",
+    "firebase-admin": "^13.2.0",
     "formidable": "^3.5.2",
     "react-router-dom": "^7.4.1"
   },

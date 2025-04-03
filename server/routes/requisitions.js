@@ -4,7 +4,10 @@ const router = express.Router();
 const { db, admin } = require('../firebase/admin');
 const auth = require('../middleware/auth');
 const { validateJobRequisition } = require('../models/JobRequisition');
+const requisitionRoutes = require('./routes/requisitions');
 
+// Register the routes
+app.use('/api/requisitions', requisitionRoutes);
 /**
  * Create a new job requisition
  * POST /api/requisitions
