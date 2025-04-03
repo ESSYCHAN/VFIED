@@ -1,5 +1,4 @@
-// src/services/requisitionService.js
-import { db, auth } from '../firebase/config';
+import { db, auth } from '../../lib/firebase';
 import { 
   collection, 
   doc, 
@@ -14,49 +13,102 @@ import {
   serverTimestamp
 } from "firebase/firestore";
 
+// Utility function to log errors with context
+const logError = (context, error) => {
+  console.error(`Error in ${context}:`, {
+    message: error.message,
+    code: error.code,
+    stack: error.stack
+  });
+};
+
 // Get all requisitions (with optional filters)
 export const getRequisitions = async (filters = {}) => {
   try {
+    // Extensive logging for debugging
+    console.log('Fetching Requisitions - Start');
+    console.log('Filters:', filters);
+
+    // Validate Firebase services
+    if (!db) {
+      throw new Error('Firestore database is not initialized');
+    }
+
+    // Check authentication
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      console.warn('No authenticated user');
+      return []; // Return empty array instead of throwing error
+    }
+
+    console.log('Current User ID:', currentUser.uid);
+
+    // Construct base query
     const requisitionsRef = collection(db, 'requisitions');
     
-    let q = requisitionsRef;
+    // Build query with user-specific and optional status filtering
+    let q = query(
+      requisitionsRef,
+      where('createdBy', '==', currentUser.uid),
+      orderBy('createdAt', 'desc')
+    );
     
-    // Apply filters
+    // Apply additional status filter if provided
     if (filters.status) {
-      q = query(q, where('status', '==', filters.status));
+      q = query(
+        requisitionsRef,
+        where('createdBy', '==', currentUser.uid),
+        where('status', '==', filters.status),
+        orderBy('createdAt', 'desc')
+      );
     }
     
-    if (filters.companyId) {
-      q = query(q, where('companyId', '==', filters.companyId));
-    }
-    
-    if (filters.createdBy) {
-      q = query(q, where('createdBy', '==', filters.createdBy));
-    }
-    
-    // Always order by createdAt in descending order (newest first)
-    q = query(q, orderBy('createdAt', 'desc'));
-    
+    // Execute query
     const querySnapshot = await getDocs(q);
     
+    console.log('Query Snapshot Size:', querySnapshot.size);
+
+    // Process documents
     const requisitions = [];
     querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      
+      // Log each document for debugging
+      console.log('Requisition Document:', {
+        id: doc.id,
+        title: data.title,
+        status: data.status,
+        createdAt: data.createdAt
+      });
+      
       requisitions.push({
         id: doc.id,
-        ...doc.data()
+        ...data,
+        // Safely convert Firestore timestamps
+        createdAt: data.createdAt?.toDate?.() || data.createdAt,
+        updatedAt: data.updatedAt?.toDate?.() || data.updatedAt
       });
     });
     
+    console.log('Fetched Requisitions - End');
+    console.log('Requisitions Count:', requisitions.length);
+    
     return requisitions;
   } catch (error) {
-    console.error("Error getting requisitions:", error);
-    throw error;
+    logError('getRequisitions', error);
+    
+    // Provide a more informative error
+    throw new Error(`Failed to fetch requisitions: ${error.message}`);
   }
 };
 
 // Get a single requisition by ID
 export const getRequisitionById = async (id) => {
   try {
+    if (!id) {
+      throw new Error('Requisition ID is required');
+    }
+
     const docRef = doc(db, 'requisitions', id);
     const docSnap = await getDoc(docRef);
     
@@ -66,31 +118,30 @@ export const getRequisitionById = async (id) => {
         ...docSnap.data()
       };
     } else {
-      console.log("No such requisition exists!");
+      console.warn(`No requisition found with ID: ${id}`);
       return null;
     }
   } catch (error) {
-    console.error("Error getting requisition:", error);
+    logError('getRequisitionById', error);
     throw error;
   }
 };
 
-// Create a new requisition
+// Rest of the methods remain the same with similar error handling
 export const createRequisition = async (requisitionData) => {
   try {
     const currentUser = auth.currentUser;
     
     if (!currentUser) {
-      throw new Error("You must be logged in to create a requisition");
+      throw new Error('Authentication required to create a requisition');
     }
-    
-    // Add timestamp and user info
+
     const dataWithMeta = {
       ...requisitionData,
       createdBy: currentUser.uid,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-      status: requisitionData.status || 'draft' // Default to draft if not specified
+      status: requisitionData.status || 'draft'
     };
     
     const docRef = await addDoc(collection(db, 'requisitions'), dataWithMeta);
@@ -100,11 +151,10 @@ export const createRequisition = async (requisitionData) => {
       ...dataWithMeta
     };
   } catch (error) {
-    console.error("Error creating requisition:", error);
+    logError('createRequisition', error);
     throw error;
   }
 };
-
 // Update an existing requisition
 export const updateRequisition = async (id, requisitionData) => {
   try {
@@ -150,9 +200,6 @@ export const deleteRequisition = async (id) => {
       throw new Error("Requisition not found");
     }
     
-    // Only the creator or an admin can delete the requisition
-    // (You would need to implement role-based checks here)
-    
     await deleteDoc(doc(db, 'requisitions', id));
     
     return true;
@@ -187,10 +234,6 @@ export const getMatchingCandidates = async (requisitionId) => {
     if (!requisition) {
       throw new Error("Requisition not found");
     }
-    
-    // In a real application, you would have a more sophisticated algorithm
-    // to match candidates based on skills, experience, etc.
-    // For now, we'll just mock some data
     
     // Mock data - in a real app, you'd query candidates from your database
     // and perform matching algorithm
@@ -234,28 +277,18 @@ export const getMatchingCandidates = async (requisitionId) => {
   }
 };
 
-// Get all requisitions for a user
-export const getUserRequisitions = async (userId) => {
+// Activate a requisition
+export const activateRequisition = async (id) => {
   try {
-    const q = query(
-      collection(db, 'requisitions'),
-      where('createdBy', '==', userId),
-      orderBy('createdAt', 'desc')
-    );
-    
-    const querySnapshot = await getDocs(q);
-    
-    const requisitions = [];
-    querySnapshot.forEach((doc) => {
-      requisitions.push({
-        id: doc.id,
-        ...doc.data()
-      });
+    const docRef = doc(db, 'requisitions', id);
+    await updateDoc(docRef, {
+      status: 'active',
+      updatedAt: serverTimestamp()
     });
     
-    return requisitions;
+    return true;
   } catch (error) {
-    console.error("Error getting user requisitions:", error);
+    console.error("Error activating requisition:", error);
     throw error;
   }
 };

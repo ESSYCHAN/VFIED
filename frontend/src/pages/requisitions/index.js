@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../../components/Layout';
-import { getRequisitions } from '../../services/requisitionService';
+import { getRequisitions } from '../../services/recruiter/requisitionService';
 import { useAuth } from '../../contexts/AuthContext';
 
 const statusColors = {

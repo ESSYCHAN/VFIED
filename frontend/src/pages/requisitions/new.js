@@ -3,7 +3,7 @@ import React from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../../components/Layout';
 import JobRequisitionForm from '../../components/recruiter/JobRequisitionForm';
-import { createRequisition } from '../../services/requisitionService';
+import { createRequisition } from '../../services/recruiter/requisitionService';
 
 const NewRequisitionPage = () => {
   const router = useRouter();

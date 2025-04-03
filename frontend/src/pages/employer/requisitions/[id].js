@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../../../contexts/AuthContext';
-import { getRequisition, updateRequisition } from '../../../services/requisitionService';
+import { getRequisition, updateRequisition } from '../../../services/recruiter/requisitionService';
 import Layout from '../../../components/Layout';
 import CandidateList from '../../../components/recruiter/CandidateList';
 import RequisitionForm from '../../../components/recruiter/RequisitionForm';

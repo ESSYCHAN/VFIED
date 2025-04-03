@@ -5,6 +5,9 @@ import Layout from '../../components/Layout';
 import Head from 'next/head';
 import { styles } from '../../styles/sharedStyles';
 import { getJobCandidates, performSkillsAssessment } from '../../services/recruitmentService';
+import { getRequisitions } from '../../services/recruiter/requisitionService';
+import Link from 'next/link';
+
 
 // Job Requirements Form
 const JobRequirementsForm = ({ onSubmit, isLoading }) => {
@@ -491,6 +494,8 @@ export default function RecruiterDashboard() {
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [skillsAssessment, setSkillsAssessment] = useState(null);
   const [error, setError] = useState(null);
+  const [requisitions, setRequisitions] = useState([]);
+  const [requisitionsLoading, setRequisitionsLoading] = useState(false);
 
   const handleRequirementsSubmit = async (requirements) => {
     try {
@@ -521,6 +526,38 @@ export default function RecruiterDashboard() {
         setLoading(false);
       }
     };
+
+    useEffect(() => {
+      const fetchRequisitions = async () => {
+        console.log('Current User in useEffect:', currentUser);
+        
+        if (!currentUser) {
+          console.log('No current user, cannot fetch requisitions');
+          return;
+        }
+        
+        try {
+          setRequisitionsLoading(true);
+          const filters = { status: 'active' }; 
+          console.log('Attempting to fetch requisitions');
+          
+          const data = await getRequisitions(filters);
+          
+          console.log('Received requisitions:', data);
+          
+          setRequisitions(data.slice(0, 3)); 
+        } catch (err) {
+          console.error('Error fetching requisitions:', err);
+          // Optionally set an error state to show to the user
+          setError(err.message || 'Failed to fetch requisitions');
+        } finally {
+          setRequisitionsLoading(false);
+        }
+      };
+    
+      fetchRequisitions();
+    }, [currentUser]);
+
 
   return (
     <Layout>
@@ -655,7 +692,103 @@ export default function RecruiterDashboard() {
             </div>
           </div>
         )}
+
       </div>
+      {requisitions.length > 0 && (
+        <div style={{ 
+          backgroundColor: 'white', 
+          borderRadius: '8px', 
+          padding: '16px', 
+          marginBottom: '16px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)' 
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            marginBottom: '12px' 
+          }}>
+            <h2 style={{ 
+              fontSize: '18px', 
+              fontWeight: '600' 
+            }}>
+              Active Job Requisitions
+            </h2>
+            <Link href="/requisitions" style={{ 
+              color: '#5a45f8', 
+              textDecoration: 'none',
+              fontSize: '14px' 
+            }}>
+              See All Requisitions
+            </Link>
+          </div>
+          
+          {requisitionsLoading ? (
+            <div style={{ 
+              textAlign: 'center', 
+              color: '#6b7280', 
+              padding: '20px' 
+            }}>
+              Loading requisitions...
+            </div>
+          ) : (
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '12px' 
+            }}>
+              {requisitions.map((req) => (
+                <div 
+                  key={req.id} 
+                  style={{ 
+                    border: '1px solid #e5e7eb', 
+                    borderRadius: '6px', 
+                    padding: '12px', 
+                    backgroundColor: '#f9fafb' 
+                  }}
+                >
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center' 
+                  }}>
+                    <Link 
+                      href={`/requisitions/${req.id}`} 
+                      style={{ 
+                        fontWeight: '500', 
+                        color: '#1f2937', 
+                        textDecoration: 'none' 
+                      }}
+                    >
+                      {req.title}
+                    </Link>
+                    <span style={{ 
+                      fontSize: '12px', 
+                      color: '#6b7280', 
+                      textTransform: 'capitalize' 
+                    }}>
+                      {req.status}
+                    </span>
+                  </div>
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    color: '#6b7280', 
+                    fontSize: '14px', 
+                    marginTop: '8px' 
+                  }}>
+                    <span>{req.company}</span>
+                    <span>{req.location}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+
     </Layout>
   );
 }
+

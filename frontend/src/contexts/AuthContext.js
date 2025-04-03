@@ -1,189 +1,128 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+// src/contexts/AuthContext.js
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { 
+  getAuth, 
   createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword,
-  signOut,
+  signInWithEmailAndPassword, 
+  signOut, 
   onAuthStateChanged,
   GoogleAuthProvider,
-  signInWithPopup,
-  GithubAuthProvider
+  signInWithPopup
 } from 'firebase/auth';
-import { auth, db } from '../lib/firebase';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { ethers } from 'ethers';
-import RequisitionNFT from '../artifacts/contracts/RequisitionNFT.sol/RequisitionNFT.json';
-import { setPersistence, browserSessionPersistence } from 'firebase/auth';
+import { doc, getDoc, getFirestore } from 'firebase/firestore';
 
-// Set auth persistence to session only
-setPersistence(auth, browserSessionPersistence);
-
+// Create context
 const AuthContext = createContext();
 
+// Export the useAuth hook
 export function useAuth() {
   return useContext(AuthContext);
 }
 
+// Provider component
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
+  const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [web3Provider, setWeb3Provider] = useState(null);
-  const [requisitionContract, setRequisitionContract] = useState(null);
-  const [walletAddress, setWalletAddress] = useState('');
-  const [chainId, setChainId] = useState(null);
+  const [error, setError] = useState(null);
+  
+  const auth = getAuth();
+  const db = getFirestore();
 
-  // Existing Firebase Auth Functions (unchanged)
-  async function signup(email, password, name) {
+  // Sign up function
+  async function signup(email, password) {
     try {
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      await setDoc(doc(db, 'users', result.user.uid), {
-        email,
-        name,
-        createdAt: serverTimestamp(),
-        role: 'candidate',
-        profileComplete: false
-      });
-      return result;
-    } catch (error) {
-      throw error;
+      setError(null);
+      return await createUserWithEmailAndPassword(auth, email, password);
+    } catch (err) {
+      console.error("Signup error:", err);
+      setError(err.message);
+      throw err;
     }
   }
 
-  function login(email, password) {
-    return signInWithEmailAndPassword(auth, email, password);
+  // Login function
+  async function login(email, password) {
+    try {
+      setError(null);
+      return await signInWithEmailAndPassword(auth, email, password);
+    } catch (err) {
+      console.error("Login error:", err);
+      setError(err.message);
+      throw err;
+    }
   }
 
-  function logout() {
-    return signOut(auth);
-  }
-
+  // Google sign-in function
   async function signInWithGoogle() {
-    const provider = new GoogleAuthProvider();
     try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      if (!userDoc.exists()) {
-        await setDoc(doc(db, 'users', user.uid), {
-          email: user.email,
-          name: user.displayName,
-          photoURL: user.photoURL,
-          createdAt: serverTimestamp(),
-          role: 'candidate',
-          profileComplete: false
-        });
-      }
-      return result;
-    } catch (error) {
-      throw error;
+      setError(null);
+      const provider = new GoogleAuthProvider();
+      return await signInWithPopup(auth, provider);
+    } catch (err) {
+      console.error("Google sign-in error:", err);
+      setError(err.message);
+      throw err;
     }
   }
 
-  async function signInWithGithub() {
-    const provider = new GithubAuthProvider();
+  // Logout function
+  async function logout() {
     try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      if (!userDoc.exists()) {
-        await setDoc(doc(db, 'users', user.uid), {
-          email: user.email,
-          name: user.displayName,
-          photoURL: user.photoURL,
-          createdAt: serverTimestamp(),
-          role: 'candidate',
-          profileComplete: false,
-          github: {
-            username: user.reloadUserInfo.screenName || '',
-            connected: true
-          }
-        });
-      }
-      return result;
-    } catch (error) {
-      throw error;
+      setError(null);
+      return await signOut(auth);
+    } catch (err) {
+      console.error("Logout error:", err);
+      setError(err.message);
+      throw err;
     }
   }
 
-  // New Web3 Functions
-  const connectWallet = async () => {
-    if (!window.ethereum) {
-      alert('Please install MetaMask!');
-      return;
-    }
-
+  // Fetch user role from Firestore
+  async function fetchUserRole(uid) {
     try {
-      const accounts = await window.ethereum.request({ 
-        method: 'eth_requestAccounts' 
-      });
-      setWalletAddress(accounts[0]);
-      
-      const provider = new ethers.BrowserProvider(window.ethereum);
-
-      setWeb3Provider(provider);
-
-      const network = await provider.getNetwork();
-      setChainId(network.chainId);
-
-      const signer = await provider.getSigner();
-      const contract = new ethers.Contract(
-        process.env.NEXT_PUBLIC_REQUISITION_CONTRACT_ADDRESS,
-        RequisitionNFT.abi,
-        signer
-      );
-      setRequisitionContract(contract);
-
-      // Set up listeners
-      window.ethereum.on('accountsChanged', (newAccounts) => {
-        setWalletAddress(newAccounts[0] || '');
-      });
-
-      window.ethereum.on('chainChanged', (newChainId) => {
-        setChainId(parseInt(newChainId, 16));
-      });
-
-    } catch (error) {
-      console.error("Wallet connection failed:", error);
+      const userDoc = await getDoc(doc(db, 'users', uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setUserRole(userData.role || 'user');
+      } else {
+        setUserRole('user'); // Default role
+      }
+    } catch (err) {
+      console.error('Error fetching user role:', err);
+      setUserRole('user'); // Default to user role on error
     }
-  };
+  }
 
-  // Initialize auth and Web3
+  // Listen for auth state changes
   useEffect(() => {
-    // Firebase auth listener
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
+      if (user) {
+        await fetchUserRole(user.uid);
+      } else {
+        setUserRole(null);
+      }
       setLoading(false);
     });
 
-    // Auto-connect wallet if previously connected
-    if (window.ethereum?.selectedAddress) {
-      connectWallet();
-    }
-
-    return () => {
-      unsubscribe();
-      if (window.ethereum) {
-        window.ethereum.removeAllListeners();
-      }
-    };
+    return unsubscribe;
   }, []);
 
+  // Check if user has employer or recruiter role
+  const isEmployerOrRecruiter = userRole === 'employer' || userRole === 'recruiter' || userRole === 'admin';
+
+  // Context value
   const value = {
-    // Firebase Auth
     currentUser,
-    signup,
+    userRole,
+    isEmployerOrRecruiter,
     login,
+    signup,
     logout,
     signInWithGoogle,
-    signInWithGithub,
-    
-    // Web3
-    web3Provider,
-    requisitionContract,
-    walletAddress,
-    chainId,
-    connectWallet
+    error,
+    setError
   };
 
   return (

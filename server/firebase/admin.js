@@ -3,7 +3,7 @@ const admin = require('firebase-admin');
 require('dotenv').config();
 
 // Check if Firebase admin has already been initialized
-if (!admin.apps.length) {
+if (!admin.apps.length) { 
   // Initialize Firebase Admin with service account credentials
   // For local development, you can use service account JSON file
   // For production, use environment variables

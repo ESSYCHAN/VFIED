@@ -6,7 +6,7 @@ import Layout from '../../components/Layout';
 import CandidateList from '../../components/recruiter/CandidateList';
 import JobRequisitionForm from '../../components/recruiter/JobRequisitionForm';
 import SkillsAssessmentResult from '../../components/recruiter/SkillsAssessmentResult';
-import { getRequisitionById, updateRequisition, deleteRequisition, changeRequisitionStatus } from '../../services/requisitionService';
+import { getRequisitionById, updateRequisition, deleteRequisition, changeRequisitionStatus } from '../../services/recruiter/requisitionService';
 import { useAuth } from '../../contexts/AuthContext';
 
 // Status colors

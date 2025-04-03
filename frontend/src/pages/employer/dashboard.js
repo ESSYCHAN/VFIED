@@ -5,7 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import Layout from '../../components/Layout';
 import Head from 'next/head';
 import Link from 'next/link';
-import { getRequisitions, activateRequisition, deleteRequisition } from '../../services/requisitionService';
+import { getRequisitions, activateRequisition, deleteRequisition } from '../../services/recruiter/requisitionService';
 import JobRequisitionForm from '../../components/recruiter/JobRequisitionForm';
 import ErrorHandler from '../../components/ErrorHandler';
 

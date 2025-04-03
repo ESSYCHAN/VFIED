@@ -1,6 +1,6 @@
 // src/components/recruiter/CandidateList.js
 import React, { useState, useEffect } from 'react';
-import { getMatchingCandidates } from '../../services/requisitionService';
+import { getMatchingCandidates } from '../../services/recruiter/requisitionService';
 import { 
   candidateCard,
   skillTag,
