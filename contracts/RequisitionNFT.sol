@@ -20,15 +20,21 @@ contract RequisitionNFT is ERC721, Ownable {
 
     mapping(uint256 => Requisition) public requisitions;
 
+    // ONLY ADDITION: Monetization variable
+    uint256 public constant MINT_FEE = 0.01 ether;
+
     constructor() ERC721("RequisitionNFT", "RQNFT") {}
 
+    // MODIFIED FUNCTION: Added payment check
     function mintRequisition(
         address recruiter,
         string memory title,
         uint256 minSalary,
         uint256 maxSalary,
         string memory skillsCid
-    ) public onlyOwner returns (uint256) {
+    ) public payable onlyOwner returns (uint256) {
+        require(msg.value == MINT_FEE, "Incorrect payment amount"); // NEW LINE
+
         _tokenIds.increment();
         uint256 newItemId = _tokenIds.current();
         _mint(recruiter, newItemId);
@@ -42,5 +48,10 @@ contract RequisitionNFT is ERC721, Ownable {
             true
         );
         return newItemId;
+    }
+
+    // ONLY ADDITION: Withdraw function for collected fees
+    function withdrawFees() external onlyOwner {
+        payable(owner()).transfer(address(this).balance);
     }
 }
