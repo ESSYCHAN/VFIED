@@ -10,6 +10,8 @@ import {
   signInWithPopup
 } from 'firebase/auth';
 import { doc, getDoc, getFirestore } from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
+
 
 // Create context
 const AuthContext = createContext();
