@@ -14,7 +14,7 @@ export default function EmployerDashboard() {
   // Fetch employer's requisitions
   useEffect(() => {
     const unsubscribe = db.collection('requisitions')
-      .where('employerId', '==', currentUser.uid)
+      .where('recruiter', '==', currentUser.uid)
       .onSnapshot(snap => {
         setRequisitions(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       });

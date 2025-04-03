@@ -10,6 +10,8 @@ export default async function handler(req, res) {
       RequisitionNFT.abi,
       wallet
     );
+    const token = await verifyIdToken(req.headers.authorization);
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
 
     const tx = await contract.mintRequisition(
       req.body.title,

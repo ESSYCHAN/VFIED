@@ -1,9 +1,15 @@
 import { useEffect, useState } from "react";
 import { useWeb3 } from "../context/Web3Context";
 
-export default function RequisitionList() {
+export default function RequisitionList(employerId) {
   const { account, library } = useWeb3();
   const [requisitions, setRequisitions] = useState([]);
+
+  // Change Firestore query to:
+  const firestoreQuery = employerId 
+    ? db.collection('requisitions').where('recruiter', '==', employerId)
+    : db.collection('requisitions');
+
 
   useEffect(() => {
     const fetchRequisitions = async () => {
