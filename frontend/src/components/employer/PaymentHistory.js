@@ -1,4 +1,4 @@
-import { useFirestore } from '../../contexts/FirestoreContext';
+import { FirestoreContext } from '../../contexts/FirestoreContext';
 import { format } from 'date-fns';
 
 export default function PaymentHistory() {

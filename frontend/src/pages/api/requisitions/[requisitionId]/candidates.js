@@ -1,5 +1,6 @@
 import { getFirestore } from 'firebase-admin/firestore';
-import { verifyIdToken } from '../../../../lib/firebase/firebaseAdmin';
+import '@/lib/firebase/firebaseAdmin';
+
 
 export default async function handler(req, res) {
   // Authorization

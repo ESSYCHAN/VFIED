@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { useWeb3 } from "../context/Web3Context";
+import { Web3Context } from '../../contexts/Web3Context';
 import { ethers } from "ethers";
-import { useContract } from "../context/ContractContext"; // Add this import
+import { ContractContext } from '../../contexts/ContractContext';
+// import { useContract } from "../context/ContractContext"; // Add this import
 
 export default function RequisitionForm() {
-  const { account, library } = useWeb3();
+  const { account, library } = Web3Context(); 
   const { contract } = useContract(); // Get contract instance
   const [formData, setFormData] = useState({
     title: "",

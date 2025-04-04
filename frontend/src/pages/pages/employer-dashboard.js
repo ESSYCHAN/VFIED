@@ -1,6 +1,8 @@
-import EmployerDashboard from '../components/recruiter/EmployerDashboard';
+// import EmployerDashboard from '@/components/recruiter/EmployerDashboard';
 import { useRouter } from 'next/router';
-import { useAuth } from '../context/AuthContext';
+import EmployerDashboard from '../../components/recruiter/EmployerDashboard';
+import { AuthContext } from '../../contexts/AuthContext';
+// import { useAuth } from '../context/AuthContext';
 
 export default function EmployerDashboardPage() {
   const { user } = useAuth();

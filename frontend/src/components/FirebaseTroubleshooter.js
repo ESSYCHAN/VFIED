@@ -1,6 +1,6 @@
 // src/components/FirebaseTroubleshooter.js
 import React, { useState, useEffect } from 'react';
-import { app, db, auth, isFirebaseConfigured } from '../firebase/config';
+import { app, db, auth, isFirebaseConfigured } from '../lib/firebase';
 
 const FirebaseTroubleshooter = () => {
   const [firebaseStatus, setFirebaseStatus] = useState({
