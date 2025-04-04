@@ -3,18 +3,26 @@ import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
 import { styles } from '../styles/sharedStyles';
 
-// UserRoleToggle component added directly to the Layout file
 const UserRoleToggle = () => {
   const router = useRouter();
   const currentPath = router.pathname;
   const isRecruiter = currentPath.includes('/recruiter');
+  const isEmployer = currentPath.includes('/employer');
   
   const handleToggle = () => {
     if (isRecruiter) {
+      router.push('/employer/dashboard');
+    } else if (isEmployer) {
       router.push('/dashboard');
     } else {
       router.push('/recruiter/dashboard');
     }
+  };
+
+  const getCurrentMode = () => {
+    if (isRecruiter) return 'Recruiter';
+    if (isEmployer) return 'Employer';
+    return 'User';
   };
   
   return (
@@ -32,7 +40,7 @@ const UserRoleToggle = () => {
     }}>
       <div style={{ marginRight: '12px', fontSize: '14px' }}>
         <span style={{ color: '#6b7280' }}>Mode: </span>
-        <span style={{ fontWeight: '500' }}>{isRecruiter ? 'Recruiter' : 'User'}</span>
+        <span style={{ fontWeight: '500' }}>{getCurrentMode()}</span>
       </div>
       <button
         onClick={handleToggle}
@@ -46,7 +54,7 @@ const UserRoleToggle = () => {
           cursor: 'pointer'
         }}
       >
-        Switch to {isRecruiter ? 'User' : 'Recruiter'} View
+        Switch to {isRecruiter ? 'Employer' : isEmployer ? 'User' : 'Recruiter'} View
       </button>
     </div>
   );
@@ -54,7 +62,7 @@ const UserRoleToggle = () => {
 
 export default function Layout({ children }) {
   const router = useRouter();
-  const { currentUser, logout } = useAuth();
+  const { currentUser, userRole } = useAuth();
   
   const handleLogout = async () => {
     try {
@@ -66,80 +74,112 @@ export default function Layout({ children }) {
   };
   
   return (
-    <div style={styles.container}>
-      <header style={styles.header}>
+    <div>
+      <nav style={{ display: 'flex', gap: '1rem', padding: '1rem' }}>
         <Link href="/" style={{ textDecoration: 'none' }}>
-          <div style={styles.logo}>VFied</div>
+          Home
         </Link>
-        <nav style={styles.nav}>
-          <Link 
-            href="/dashboard" 
-            style={{
-              ...styles.navLink, 
-              ...(router.pathname === '/dashboard' ? styles.activeNavLink : {})
-            }}
-          >
-            Dashboard
-            </Link>
-  
-            {/* Add this link for job requisitions, visible only to employers/recruiters */}
-            {currentUser && (currentUser.role === 'employer' || currentUser.role === 'recruiter') && (
-              <Link 
-                href="/employer/dashboard" 
-                style={{
-                  ...styles.navLink, 
-                  ...(router.pathname.startsWith('/employer/') ? styles.activeNavLink : {})
-                }}
-              >
-                Job Requisitions
-              </Link>
-            )}
-            
-            <Link 
-              href="/profile" 
-              style={{
-                ...styles.navLink, 
-                ...(router.pathname === '/profile' ? styles.activeNavLink : {})
-              }}
-            >
+        
+        {/* Add Employer Link - Only show if user is employer */}
+        {user?.role === 'employer' && (
+          <Link href="/employer-dashboard" style={{ textDecoration: 'none' }}>
+            Employer Dashboard
           </Link>
-          <Link 
-            href="/profile" 
-            style={{
-              ...styles.navLink, 
-              ...(router.pathname === '/profile' ? styles.activeNavLink : {})
-            }}
-          >
-            Profile
+        )}
+
+        {/* Existing Recruiter Link */}
+        {user?.role === 'recruiter' && (
+          <Link href="/recruiter/dashboard" style={{ textDecoration: 'none' }}>
+            Recruiter Dashboard
           </Link>
-          <Link 
-            href="/settings" 
-            style={{
-              ...styles.navLink, 
-              ...(router.pathname === '/settings' ? styles.activeNavLink : {})
-            }}
-          >
-            Settings
-          </Link>
-          <button 
-            onClick={handleLogout} 
-            style={{
-              ...styles.navLink, 
-              background: 'none', 
-              border: 'none', 
-              cursor: 'pointer'
-            }}
-          >
-            Logout
-          </button>
-        </nav>
-      </header>
-      <main style={styles.main}>
-        {children}
-      </main>
-      
-      {/* Add the UserRoleToggle component */}
-      <UserRoleToggle />
+        )}
+
+        <Link href="/profile" style={{ textDecoration: 'none' }}>
+          Profile
+        </Link>
+      </nav>
+      <main>{children}</main>
     </div>
   );
 }
+//     <div style={styles.container}>
+//       <header style={styles.header}>
+//         <Link href="/" style={{ textDecoration: 'none' }}>
+//           <div style={styles.logo}>VFied</div>
+//         </Link>
+//         <nav style={styles.nav}>
+//           <Link 
+//             href="/dashboard" 
+//             style={{
+//               ...styles.navLink, 
+//               ...(router.pathname === '/dashboard' ? styles.activeNavLink : {})
+//             }}
+//           >
+//             Dashboard
+//           </Link>
+          
+//           {/* Recruiter Link - only visible to recruiters */}
+//           {currentUser?.role === 'recruiter' && (
+//             <Link 
+//               href="/recruiter/dashboard" 
+//               style={{
+//                 ...styles.navLink, 
+//                 ...(router.pathname.startsWith('/recruiter/') ? styles.activeNavLink : {})
+//               }}
+//             >
+//               Recruiter Dashboard
+//             </Link>
+//           )}
+          
+//           {/* Employer Link - only visible to employers */}
+//           {currentUser?.role === 'employer' && (
+//             <Link 
+//               href="/employer/dashboard" 
+//               style={{
+//                 ...styles.navLink, 
+//                 ...(router.pathname.startsWith('/employer/') ? styles.activeNavLink : {})
+//               }}
+//             >
+//               Employer Dashboard
+//             </Link>
+//           )}
+          
+//           <Link 
+//             href="/profile" 
+//             style={{
+//               ...styles.navLink, 
+//               ...(router.pathname === '/profile' ? styles.activeNavLink : {})
+//             }}
+//           >
+//             Profile
+//           </Link>
+//           <Link 
+//             href="/settings" 
+//             style={{
+//               ...styles.navLink, 
+//               ...(router.pathname === '/settings' ? styles.activeNavLink : {})
+//             }}
+//           >
+//             Settings
+//           </Link>
+//           <button 
+//             onClick={handleLogout} 
+//             style={{
+//               ...styles.navLink, 
+//               background: 'none', 
+//               border: 'none', 
+//               cursor: 'pointer'
+//             }}
+//           >
+//             Logout
+//           </button>
+//         </nav>
+//       </header>
+//       <main style={styles.main}>
+//         {children}
+//       </main>
+      
+//       <UserRoleToggle />
+//     </div>
+//   );
+// }

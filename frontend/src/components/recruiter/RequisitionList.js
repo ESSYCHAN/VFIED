@@ -6,9 +6,16 @@ export default function RequisitionList(employerId) {
   const [requisitions, setRequisitions] = useState([]);
 
   // Change Firestore query to:
-  const firestoreQuery = employerId 
-    ? db.collection('requisitions').where('recruiter', '==', employerId)
-    : db.collection('requisitions');
+  // const firestoreQuery = employerId 
+  //   ? db.collection('requisitions').where('recruiter', '==', employerId)
+  //   : db.collection('requisitions');
+
+    const firestoreQuery = isEmployer
+    ? db.collection('requisitions').where('employer', '==', employerId) // New employer filter
+    : employerId
+      ? db.collection('requisitions').where('recruiter', '==', employerId) // Existing recruiter filter
+      : db.collection('requisitions');
+  
 
 
   useEffect(() => {
