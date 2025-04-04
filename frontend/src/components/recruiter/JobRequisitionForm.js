@@ -1,6 +1,6 @@
 // src/components/recruiter/JobRequisitionForm.js
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import ErrorHandler from '../ErrorHandler';
 
 const JobRequisitionForm = ({ requisition, onSubmit, onCancel }) => {
@@ -45,6 +45,8 @@ const JobRequisitionForm = ({ requisition, onSubmit, onCancel }) => {
     category: '',
     referenceId: ''
   });
+
+
   
   // Current skill being added
   const [currentSkill, setCurrentSkill] = useState({ skill: '', importance: 3, yearsRequired: 0 });
@@ -1112,3 +1114,5 @@ const JobRequisitionForm = ({ requisition, onSubmit, onCancel }) => {
     </div>
   );
 };
+
+export default JobRequisitionForm;

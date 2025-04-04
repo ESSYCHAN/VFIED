@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Web3Context } from '../../contexts/Web3Context';
+import { Web3Context } from '../../context/Web3Context';
 import { ethers } from "ethers";
-import { ContractContext } from '../../contexts/ContractContext';
+import { ContractContext } from '../../context/ContractContext';
 // import { useContract } from "../context/ContractContext"; // Add this import
 
 export default function RequisitionForm() {

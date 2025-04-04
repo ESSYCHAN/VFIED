@@ -1,8 +1,8 @@
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement } from '@stripe/react-stripe-js';
-import PaymentHistory from '../../components/employer/PaymentHistory'; // New
-import RevenueChart from '../../components/employer/RevenueChart'; // New
+import PaymentHistory from '@/components/employer/PaymentHistory'; // New
+import RevenueChart from '@/components/employer/RevenueChart'; // New
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_KEY);
 

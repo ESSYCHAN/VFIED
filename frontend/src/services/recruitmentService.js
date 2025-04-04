@@ -107,4 +107,13 @@ export const suggestInterviewQuestions = async (candidateId, jobRequirements) =>
     console.error('Failed to generate interview questions:', error);
     throw error;
   }
+  
+};
+
+export function generateAssessmentReport(data) {
+  // implementation
+};
+
+export function getRequisition(id) {
+  // implementation
 };

@@ -1,15 +1,15 @@
 // src/pages/credentials/[id].js
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { db } from '../../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import Head from 'next/head';
-import Layout from '../../components/Layout';
-import VerificationStatusTracker from '../../components/VerificationStatusTracker';
-import ErrorHandler from '../../components/ErrorHandler';
+import Layout from '@/components/Layout';
+import VerificationStatusTracker from '@/components/VerificationStatusTracker';
+import ErrorHandler from '@/components/ErrorHandler';
 import { styles } from '../../styles/sharedStyles';
-import CredentialShareModal from '../../components/CredentialShareModal';
+import CredentialShareModal from '@/components/CredentialShareModal';
 
 export default function CredentialDetailPage() {
   const router = useRouter();

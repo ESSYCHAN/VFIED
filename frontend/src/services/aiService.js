@@ -38,3 +38,8 @@ export const analyzeDocumentWithAI = async (file, credentialType) => {
     throw error;
   }
 };
+
+export const analyzeDocumentWithClaude = async (document) => {
+  // Implement your AI analysis
+  return {}; // Return analysis results
+};

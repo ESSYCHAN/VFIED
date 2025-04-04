@@ -2,9 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import Layout from '../../components/Layout';
+import Layout from '@/components/Layout';
 import { getRequisitions } from '../../services/recruiter/requisitionService';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 
 const statusColors = {
   active: { bg: '#dcfce7', text: '#15803d' },  // Green

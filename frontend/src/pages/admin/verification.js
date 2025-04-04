@@ -1,10 +1,10 @@
 // src/pages/admin/verification.js
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { useAuth } from '../../contexts/AuthContext';
-import Layout from '../../components/Layout';
+import { useAuth } from '../../context/AuthContext';
+import Layout from '@/components/Layout';
 import Head from 'next/head';
-import ErrorHandler from '../../components/ErrorHandler';
+import ErrorHandler from '@/components/ErrorHandler';
 export default function VerificationAdmin() {
   const router = useRouter();
   const { currentUser, userClaims, getIdToken } = useAuth();

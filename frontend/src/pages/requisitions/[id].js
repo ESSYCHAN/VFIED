@@ -2,12 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import Layout from '../../components/Layout';
-import CandidateList from '../../components/recruiter/CandidateList';
-import JobRequisitionForm from '../../components/recruiter/JobRequisitionForm';
-import SkillsAssessmentResult from '../../components/recruiter/SkillsAssessmentResult';
+import Layout from '@/components/Layout';
+import CandidateList from '@/components/recruiter/CandidateList';
+import JobRequisitionForm from '@/components/recruiter/JobRequisitionForm';
+import SkillsAssessmentResult from '@/components/recruiter/SkillsAssessmentResult';
 import { getRequisitionById, updateRequisition, deleteRequisition, changeRequisitionStatus } from '../../services/recruiter/requisitionService';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 
 // Status colors
 const statusColors = {

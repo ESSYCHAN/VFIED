@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { db } from '../lib/firebase';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { styles } from '../styles/sharedStyles';
-import VerificationStatusTracker from '../../components/VerificationStatusTracker';
+import VerificationStatusTracker from '@/components/VerificationStatusTracker';
 
 export default function CredentialDetails({ credential, onClose, onUpdate, onDelete }) {
   const [loading, setLoading] = useState(false);

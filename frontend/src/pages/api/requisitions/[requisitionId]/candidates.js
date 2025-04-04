@@ -1,5 +1,5 @@
 import { getFirestore } from 'firebase-admin/firestore';
-import '@/lib/firebase/firebaseAdmin';
+import '../../../../lib/firebase/firebaseAdmin';  // Exact relative path
 
 
 export default async function handler(req, res) {

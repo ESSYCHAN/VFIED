@@ -1,4 +1,4 @@
-import { useContract } from '../../contexts/ContractContext';
+import { useContract } from '../../context/ContractContext';
 
 export default function FinancePanel() {
   const { contract } = useContract();

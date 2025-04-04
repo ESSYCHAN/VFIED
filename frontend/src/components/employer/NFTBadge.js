@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useContract } from '../../contexts/ContractContext';
+import { useContract } from '../../context/ContractContext';
 
 export default function NFTBadge({ requisitionId }) {
   const { contract } = useContract();

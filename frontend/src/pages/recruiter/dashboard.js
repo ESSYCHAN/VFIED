@@ -1,7 +1,7 @@
 // src/pages/recruiter/dashboard.js
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import Layout from '../../components/Layout';
+import { useAuth } from '../../context/AuthContext';
+import Layout from '@/components/Layout';
 import Head from 'next/head';
 import { styles } from '../../styles/sharedStyles';
 import { getJobCandidates, performSkillsAssessment } from '../../services/recruitmentService';

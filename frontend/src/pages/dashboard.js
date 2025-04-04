@@ -1,23 +1,23 @@
 // src/pages/dashboard.js
 import { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
-import Layout from '../components/Layout';
+import Layout from '@/components/Layout';
 import Head from 'next/head';
 import { styles } from '../styles/sharedStyles';
 import Link from 'next/link';
-import { performSkillsAssessment, getJobCandidates } from '../services/recruitmentService';
-import AIJobMatching from '../components/AIJobMatching';
-import CredentialUploadForm from '../components/CredentialUploadForm';
-import ErrorHandler from '../components/ErrorHandler';
+import { performSkillsAssessment, getJobCandidates } from '@/services/recruitmentService';
+import AIJobMatching from '@/components/AIJobMatching';
+import CredentialUploadForm from '@/components/CredentialUploadForm';
+import ErrorHandler from '@/components/ErrorHandler';
 import { useRouter } from 'next/router';  // Add this import
 
 // // Import all the components used
-// import CredentialCard from '../components/CredentialCard';
-// import StatCard from '../components/StatCard';
-// import AIJobMatching from '../components/AIJobMatching';
-// import CredentialUploadForm from '../components/CredentialUploadForm';
+// import CredentialCard from '@/components/CredentialCard';
+// import StatCard from '@/components/StatCard';
+// import AIJobMatching from '@/components/AIJobMatching';
+// import CredentialUploadForm from '@/components/CredentialUploadForm';
 // const router = useRouter(); 
 
 // Credential Card Component

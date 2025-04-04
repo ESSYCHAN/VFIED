@@ -19,21 +19,32 @@
     "firebase-admin": "^13.2.0",
     "formidable": "^3.5.2",
     "react-chartjs-2": "^5.3.0",
-    "react-router-dom": "^7.4.1"
+    "react-router-dom": "^7.4.1",
+    "stripe": "^18.0.0"
   },
   "scripts": {
     "compile": "hardhat compile",
     "postcompile": "node copy-artifacts.js",
     "build": "npm run compile && cd frontend && npm run build"
-  }, 
+  },
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@/contexts/*": ["./src/contexts/*"],
-      "@/components/*": ["./src/components/*"],
-      "@/lib/*": ["./src/lib/*"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@/contexts/*": [
+        "./src/contexts/*"
+      ],
+      "@/components/*": [
+        "./src/components/*"
+      ],
+      "@/lib/*": [
+        "./src/lib/*"
+      ]
     }
   },
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }

@@ -21,6 +21,10 @@ const logError = (context, error) => {
     stack: error.stack
   });
 };
+export const getRequisition = async (id) => {
+  // Implement your Firestore query here
+  return {}; // Return requisition data
+};
 
 // Get all requisitions (with optional filters)
 export const getRequisitions = async (filters = {}) => {

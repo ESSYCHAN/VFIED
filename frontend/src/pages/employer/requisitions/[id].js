@@ -1,11 +1,11 @@
 // src/pages/employer/requisitions/[id].js
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../context/AuthContext';
 import { getRequisition, updateRequisition } from '../../../services/recruiter/requisitionService';
-import Layout from '../../../components/Layout';
-import CandidateList from '../../../components/recruiter/CandidateList';
-import RequisitionForm from '../../../components/recruiter/RequisitionForm';
+import Layout from '@/components/Layout';
+import CandidateList from '@/components/recruiter/CandidateList';
+import RequisitionForm from '@/components/recruiter/RequisitionForm';
 import { 
   container, 
   header, 

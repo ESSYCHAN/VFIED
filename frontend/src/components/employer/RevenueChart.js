@@ -1,5 +1,5 @@
 import { Bar } from 'react-chartjs-2';
-import { useFirestore } from '../../contexts/FirestoreContext';
+import { useFirestore } from '../../context/FirestoreContext';
 
 export default function RevenueChart() {
   const { currentUser } = useAuth();

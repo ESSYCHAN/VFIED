@@ -1,8 +1,8 @@
 // src/pages/debug-firebase.js
 import React, { useState } from 'react';
-import Layout from '../components/Layout';
-import FirebaseTroubleshooter from '../components/FirebaseTroubleshooter';
-import { signInWithGoogle } from '../firebase/config';
+import Layout from '@/components/Layout';
+import FirebaseTroubleshooter from '@/components/FirebaseTroubleshooter';
+import { signInWithGoogle } from '@/lib/firebase';
 
 const FirebaseDebugPage = () => {
   const [googleSignInResult, setGoogleSignInResult] = useState(null);

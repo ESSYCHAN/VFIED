@@ -1,7 +1,7 @@
 // src/pages/CredentialView.js
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Layout from '../components/Layout';
+import Layout from '@/components/Layout';
 import { getCredentialById, requestVerification, updateCredential, deleteCredential } from '../services/credentialService';
 
 const CredentialView = () => {
