@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.13",
+    "dotenv": "^16.4.7",
     "fs-extra": "^11.3.0",
     "hardhat": "^2.22.19"
   },
@@ -13,6 +15,7 @@
     "@stripe/stripe-js": "^7.0.0",
     "chart.js": "^4.4.8",
     "ethers": "^6.13.5",
+    "firebase": "^11.6.0",
     "firebase-admin": "^13.2.0",
     "formidable": "^3.5.2",
     "react-chartjs-2": "^5.3.0",
@@ -22,5 +25,15 @@
     "compile": "hardhat compile",
     "postcompile": "node copy-artifacts.js",
     "build": "npm run compile && cd frontend && npm run build"
-  }
+  }, 
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@/contexts/*": ["./src/contexts/*"],
+      "@/components/*": ["./src/components/*"],
+      "@/lib/*": ["./src/lib/*"]
+    }
+  },
+  "exclude": ["node_modules"]
 }
