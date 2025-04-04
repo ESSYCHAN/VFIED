@@ -1,6 +1,6 @@
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { styles } from '../styles/sharedStyles';
 
 const UserRoleToggle = () => {
@@ -18,7 +18,7 @@ const UserRoleToggle = () => {
       router.push('/recruiter/dashboard');
     }
   };
-
+  
   const getCurrentMode = () => {
     if (isRecruiter) return 'Recruiter';
     if (isEmployer) return 'Employer';
@@ -62,7 +62,25 @@ const UserRoleToggle = () => {
 
 export default function Layout({ children }) {
   const router = useRouter();
-  const { currentUser, userRole } = useAuth();
+  
+  // Wrap the useAuth call in a try-catch to handle potential errors
+  let user = null;
+  let loading = true;
+  let logout = () => {};
+  
+  try {
+    const auth = useAuth();
+    user = auth.user;
+    loading = auth.loading;
+    logout = auth.logout || (() => {});
+  } catch (error) {
+    console.warn("Auth context error:", error.message);
+    loading = false;
+  }
+  
+  if (loading) {
+    return <div>Loading...</div>; // Show loading state
+  }
   
   const handleLogout = async () => {
     try {
@@ -86,100 +104,18 @@ export default function Layout({ children }) {
             Employer Dashboard
           </Link>
         )}
-
         {/* Existing Recruiter Link */}
         {user?.role === 'recruiter' && (
           <Link href="/recruiter/dashboard" style={{ textDecoration: 'none' }}>
             Recruiter Dashboard
           </Link>
         )}
-
         <Link href="/profile" style={{ textDecoration: 'none' }}>
           Profile
         </Link>
       </nav>
       <main>{children}</main>
+      <UserRoleToggle />
     </div>
   );
 }
-//     <div style={styles.container}>
-//       <header style={styles.header}>
-//         <Link href="/" style={{ textDecoration: 'none' }}>
-//           <div style={styles.logo}>VFied</div>
-//         </Link>
-//         <nav style={styles.nav}>
-//           <Link 
-//             href="/dashboard" 
-//             style={{
-//               ...styles.navLink, 
-//               ...(router.pathname === '/dashboard' ? styles.activeNavLink : {})
-//             }}
-//           >
-//             Dashboard
-//           </Link>
-          
-//           {/* Recruiter Link - only visible to recruiters */}
-//           {currentUser?.role === 'recruiter' && (
-//             <Link 
-//               href="/recruiter/dashboard" 
-//               style={{
-//                 ...styles.navLink, 
-//                 ...(router.pathname.startsWith('/recruiter/') ? styles.activeNavLink : {})
-//               }}
-//             >
-//               Recruiter Dashboard
-//             </Link>
-//           )}
-          
-//           {/* Employer Link - only visible to employers */}
-//           {currentUser?.role === 'employer' && (
-//             <Link 
-//               href="/employer/dashboard" 
-//               style={{
-//                 ...styles.navLink, 
-//                 ...(router.pathname.startsWith('/employer/') ? styles.activeNavLink : {})
-//               }}
-//             >
-//               Employer Dashboard
-//             </Link>
-//           )}
-          
-//           <Link 
-//             href="/profile" 
-//             style={{
-//               ...styles.navLink, 
-//               ...(router.pathname === '/profile' ? styles.activeNavLink : {})
-//             }}
-//           >
-//             Profile
-//           </Link>
-//           <Link 
-//             href="/settings" 
-//             style={{
-//               ...styles.navLink, 
-//               ...(router.pathname === '/settings' ? styles.activeNavLink : {})
-//             }}
-//           >
-//             Settings
-//           </Link>
-//           <button 
-//             onClick={handleLogout} 
-//             style={{
-//               ...styles.navLink, 
-//               background: 'none', 
-//               border: 'none', 
-//               cursor: 'pointer'
-//             }}
-//           >
-//             Logout
-//           </button>
-//         </nav>
-//       </header>
-//       <main style={styles.main}>
-//         {children}
-//       </main>
-      
-//       <UserRoleToggle />
-//     </div>
-//   );
-// }

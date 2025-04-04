@@ -1,11 +1,7 @@
-// src/pages/_app.js
-// import '../styles/globals.css';
-// // import { AuthProvider } from '../context/AuthContext';
-// import { AuthProvider } from '@/context/AuthContext';
-
-
-import { AuthProvider } from '@/context/AuthContext';
+import '@/styles/globals.css';
 import { initializeFirebase } from '@/lib/firebase';
+import { AuthProvider } from '@/context/AuthContext';
+import Layout from '@/components/Layout';
 
 // Initialize Firebase once
 initializeFirebase();
@@ -13,7 +9,9 @@ initializeFirebase();
 function MyApp({ Component, pageProps }) {
   return (
     <AuthProvider>
-      <Component {...pageProps} />
+      <Layout> 
+        <Component {...pageProps} />
+      </Layout>
     </AuthProvider>
   );
 }

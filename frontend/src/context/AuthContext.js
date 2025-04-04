@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { 
   getAuth, 
@@ -19,6 +18,8 @@ export function AuthProvider({ children }) {
   const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // For compatibility with Layout.js which uses user and not currentUser
+  const [user, setUser] = useState(null);
   
   const auth = getAuth();
   const db = getFirestore();
@@ -88,20 +89,40 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // Auth state listener (unchanged)
+  // Auth state listener (updated to set the user state too)
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-      if (user) {
-        await fetchUserRole(user.uid);
+    const unsubscribe = onAuthStateChanged(auth, async (userData) => {
+      setCurrentUser(userData);
+      
+      if (userData) {
+        await fetchUserRole(userData.uid);
+        // Set user state to match the user format expected by Layout
+        setUser({
+          uid: userData.uid,
+          email: userData.email,
+          role: userRole || 'user'
+        });
       } else {
         setUserRole(null);
+        setUser(null);
       }
+      
       setLoading(false);
     });
-
+    
     return unsubscribe;
   }, []);
+  
+  // Update user when userRole changes
+  useEffect(() => {
+    if (currentUser && userRole) {
+      setUser({
+        uid: currentUser.uid,
+        email: currentUser.email,
+        role: userRole
+      });
+    }
+  }, [currentUser, userRole]);
 
   // New role checkers (added these)
   const isEmployer = userRole === 'employer';
@@ -109,10 +130,12 @@ export function AuthProvider({ children }) {
   const isAdmin = userRole === 'admin';
   const isEmployerOrRecruiter = isEmployer || isRecruiter || isAdmin;
 
-  // Context value (updated with new role checkers)
+  // Context value (updated with new role checkers and user state)
   const value = {
     currentUser,
     userRole,
+    user, // Add this for Layout compatibility
+    loading,
     isEmployer: userRole === 'employer',
     isRecruiter: userRole === 'recruiter',
     isAdmin: userRole === 'admin',
@@ -134,9 +157,9 @@ export function AuthProvider({ children }) {
 
 // Keep only one useAuth export at the bottom
 export function useAuth() {
-    const context = useContext(AuthContext);
-    if (context === undefined) {
-      throw new Error('useAuth must be used within an AuthProvider');
-    }
-    return context;
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
   }
+  return context;
+}
