@@ -1,3 +1,4 @@
+// src/pages/index.js
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../context/AuthContext';
@@ -5,33 +6,34 @@ import Head from 'next/head';
 import Link from 'next/link';
 
 export default function Home() {
-  const { currentUser } = useAuth();
+  const { currentUser, loading } = useAuth();
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
+  const [localLoading, setLocalLoading] = useState(true);
 
   useEffect(() => {
-    // Set a small delay to ensure authentication state is properly loaded
-    const checkAuth = setTimeout(() => {
-      setLoading(false);
+    // Only redirect after auth is confirmed loaded
+    if (!loading) {
       // If user is already logged in, redirect to dashboard
       if (currentUser) {
         router.push('/dashboard');
+      } else {
+        // If not logged in, show landing page
+        setLocalLoading(false);
       }
-    }, 500);
-    
-    return () => clearTimeout(checkAuth);
-  }, [currentUser, router]);
+    }
+  }, [currentUser, loading, router]);
 
   // Show a loading state while checking authentication
-  if (loading) {
+  if (loading || localLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p>Loading...</p>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
+        <p className="ml-3 text-indigo-600">Loading...</p>
       </div>
     );
   }
 
-  // Only show the landing page if not authenticated
+  // Rest of your landing page code remains the same
   return (
     <div className="min-h-screen bg-gray-50">
       <Head>
@@ -63,10 +65,11 @@ export default function Home() {
         </div>
       </nav>
 
-      <main>
-        {/* Hero Section */}
-        <div className="pt-10 sm:pt-16 lg:pt-8 lg:pb-14 lg:overflow-hidden">
-          <div className="mx-auto max-w-7xl lg:px-8">
+      {/* The rest of your landing page content remains unchanged */}
+      {/* Hero Section */}
+      <div className="pt-10 sm:pt-16 lg:pt-8 lg:pb-14 lg:overflow-hidden">
+        {/* Your existing hero section code */}
+        <div className="mx-auto max-w-7xl lg:px-8">
             <div className="lg:grid lg:grid-cols-2 lg:gap-8">
               <div className="mx-auto max-w-md px-4 sm:max-w-2xl sm:px-6 sm:text-center lg:px-0 lg:text-left lg:flex lg:items-center">
                 <div className="lg:py-24">
@@ -120,11 +123,12 @@ export default function Home() {
               </div>
             </div>
           </div>
-        </div>
+      </div>
 
-        {/* Features section */}
-        <div className="py-16 bg-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Features section */}
+      <div className="py-16 bg-white">
+        {/* Your existing features section code */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
               <h2 className="text-base font-semibold text-indigo-600 tracking-wide uppercase">Features</h2>
               <p className="mt-1 text-3xl font-extrabold text-gray-900 sm:text-4xl sm:tracking-tight">
@@ -196,11 +200,12 @@ export default function Home() {
               </div>
             </div>
           </div>
-        </div>
+      </div>
 
-        {/* How it works section */}
-        <div className="py-16 bg-gray-50 overflow-hidden">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* How it works section */}
+      <div className="py-16 bg-gray-50 overflow-hidden">
+        {/* Your existing how it works section code */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
               <h2 className="text-base font-semibold text-indigo-600 tracking-wide uppercase">Process</h2>
               <p className="mt-1 text-3xl font-extrabold text-gray-900 sm:text-4xl sm:tracking-tight">
@@ -248,11 +253,12 @@ export default function Home() {
               </div>
             </div>
           </div>
-        </div>
+      </div>
 
-        {/* CTA section */}
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600">
-          <div className="max-w-2xl mx-auto text-center py-16 px-4 sm:py-20 sm:px-6 lg:px-8">
+      {/* CTA section */}
+      <div className="bg-gradient-to-r from-indigo-600 to-purple-600">
+        {/* Your existing CTA section code */}
+        <div className="max-w-2xl mx-auto text-center py-16 px-4 sm:py-20 sm:px-6 lg:px-8">
             <h2 className="text-3xl font-extrabold text-white sm:text-4xl">
               <span className="block">Ready to revolutionize your job search?</span>
             </h2>
@@ -265,9 +271,9 @@ export default function Home() {
               </span>
             </Link>
           </div>
-        </div>
-      </main>
+      </div>
 
+      {/* Footer */}
       <footer className="bg-white">
         <div className="max-w-7xl mx-auto py-12 px-4 overflow-hidden sm:px-6 lg:px-8">
           <p className="text-center text-base text-gray-500">

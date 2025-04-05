@@ -1,17 +1,17 @@
-// src/pages/_app.js (continued)
+// src/pages/_app.js
 import '@/styles/globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import Layout from '@/components/Layout';
 import Head from 'next/head';
 
 function MyApp({ Component, pageProps }) {
-  // Check if the component has a getLayout function
+  // Check if the component should use the layout
   const getLayout = Component.getLayout || ((page) => {
-    // Don't wrap login and signup pages with the Layout component
+    // Skip layout for auth pages
     if (
-      Component.displayName === 'LoginPage' || 
-      Component.displayName === 'SignupPage' ||
+      Component.displayName === 'Login' || 
       Component.name === 'Login' ||
+      Component.displayName === 'Signup' ||
       Component.name === 'Signup' ||
       pageProps.hideLayout
     ) {
