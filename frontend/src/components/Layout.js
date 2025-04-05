@@ -1,86 +1,11 @@
-import { useRouter } from 'next/router';
+// src/components/Layout.js
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { useAuth } from '@/context/AuthContext';
-import { styles } from '../styles/sharedStyles';
-
-const UserRoleToggle = () => {
-  const router = useRouter();
-  const currentPath = router.pathname;
-  const isRecruiter = currentPath.includes('/recruiter');
-  const isEmployer = currentPath.includes('/employer');
-  
-  const handleToggle = () => {
-    if (isRecruiter) {
-      router.push('/employer/dashboard');
-    } else if (isEmployer) {
-      router.push('/dashboard');
-    } else {
-      router.push('/recruiter/dashboard');
-    }
-  };
-  
-  const getCurrentMode = () => {
-    if (isRecruiter) return 'Recruiter';
-    if (isEmployer) return 'Employer';
-    return 'User';
-  };
-  
-  return (
-    <div style={{
-      position: 'fixed',
-      bottom: '20px',
-      right: '20px',
-      zIndex: 100,
-      display: 'flex',
-      alignItems: 'center',
-      backgroundColor: '#ffffff',
-      boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)',
-      borderRadius: '8px',
-      padding: '8px 16px'
-    }}>
-      <div style={{ marginRight: '12px', fontSize: '14px' }}>
-        <span style={{ color: '#6b7280' }}>Mode: </span>
-        <span style={{ fontWeight: '500' }}>{getCurrentMode()}</span>
-      </div>
-      <button
-        onClick={handleToggle}
-        style={{
-          backgroundColor: '#5a45f8',
-          color: 'white',
-          border: 'none',
-          borderRadius: '4px',
-          padding: '6px 12px',
-          fontSize: '14px',
-          cursor: 'pointer'
-        }}
-      >
-        Switch to {isRecruiter ? 'Employer' : isEmployer ? 'User' : 'Recruiter'} View
-      </button>
-    </div>
-  );
-};
 
 export default function Layout({ children }) {
   const router = useRouter();
-  
-  // Wrap the useAuth call in a try-catch to handle potential errors
-  let user = null;
-  let loading = true;
-  let logout = () => {};
-  
-  try {
-    const auth = useAuth();
-    user = auth.user;
-    loading = auth.loading;
-    logout = auth.logout || (() => {});
-  } catch (error) {
-    console.warn("Auth context error:", error.message);
-    loading = false;
-  }
-  
-  if (loading) {
-    return <div>Loading...</div>; // Show loading state
-  }
+  const { currentUser, logout } = useAuth();
   
   const handleLogout = async () => {
     try {
@@ -91,31 +16,46 @@ export default function Layout({ children }) {
     }
   };
   
+  const isActive = (path) => {
+    return router.pathname === path ? 'bg-indigo-100 text-indigo-700' : 'hover:bg-gray-50';
+  };
+  
   return (
-    <div>
-      <nav style={{ display: 'flex', gap: '1rem', padding: '1rem' }}>
-        <Link href="/" style={{ textDecoration: 'none' }}>
-          Home
-        </Link>
-        
-        {/* Add Employer Link - Only show if user is employer */}
-        {user?.role === 'employer' && (
-          <Link href="/employer-dashboard" style={{ textDecoration: 'none' }}>
-            Employer Dashboard
-          </Link>
-        )}
-        {/* Existing Recruiter Link */}
-        {user?.role === 'recruiter' && (
-          <Link href="/recruiter/dashboard" style={{ textDecoration: 'none' }}>
-            Recruiter Dashboard
-          </Link>
-        )}
-        <Link href="/profile" style={{ textDecoration: 'none' }}>
-          Profile
-        </Link>
-      </nav>
-      <main>{children}</main>
-      <UserRoleToggle />
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <Link href="/" className="text-2xl font-bold text-indigo-600">
+              VFied
+            </Link>
+            
+            <div className="flex space-x-4">
+              <Link 
+                href="/dashboard" 
+                className={`px-4 py-2 rounded-md text-sm font-medium ${isActive('/dashboard')}`}
+              >
+                Dashboard
+              </Link>
+              <Link 
+                href="/profile" 
+                className={`px-4 py-2 rounded-md text-sm font-medium ${isActive('/profile')}`}
+              >
+                Profile
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 rounded-md text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700"
+              >
+                Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        {children}
+      </main>
     </div>
   );
 }

@@ -1,3 +1,4 @@
+// src/pages/login.js
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'next/router';
@@ -9,133 +10,8 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, signInWithGoogle, signInWithGithub } = useAuth();
+  const { login, signInWithGoogle } = useAuth();
   const router = useRouter();
-
-  // Styles
-  const styles = {
-    container: {
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: '#f5f7fa',
-      padding: '16px'
-    },
-    formContainer: {
-      width: '100%',
-      maxWidth: '400px',
-      backgroundColor: 'white',
-      borderRadius: '8px',
-      boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-      padding: '32px'
-    },
-    header: {
-      textAlign: 'center',
-      marginBottom: '32px'
-    },
-    logo: {
-      fontSize: '30px',
-      fontWeight: 'bold',
-      background: 'linear-gradient(to right, #5a45f8, #c177ec)',
-      WebkitBackgroundClip: 'text',
-      WebkitTextFillColor: 'transparent',
-      marginBottom: '16px'
-    },
-    title: {
-      fontSize: '24px',
-      fontWeight: 'bold',
-      color: '#111827',
-      marginBottom: '8px'
-    },
-    subtitle: {
-      fontSize: '16px',
-      color: '#6b7280'
-    },
-    form: {
-      marginBottom: '24px'
-    },
-    inputGroup: {
-      marginBottom: '16px'
-    },
-    label: {
-      display: 'block',
-      marginBottom: '8px',
-      fontSize: '14px',
-      fontWeight: '500',
-      color: '#374151'
-    },
-    input: {
-      width: '100%',
-      padding: '10px 12px',
-      border: '1px solid #d1d5db',
-      borderRadius: '6px',
-      fontSize: '16px',
-      lineHeight: '1.5',
-      transition: 'border-color 0.2s'
-    },
-    button: {
-      width: '100%',
-      padding: '12px',
-      borderRadius: '6px',
-      fontWeight: '500',
-      cursor: 'pointer',
-      transition: 'background-color 0.2s',
-      border: 'none',
-      backgroundColor: '#5a45f8',
-      color: 'white',
-      marginBottom: '16px'
-    },
-    socialButton: {
-      width: '100%',
-      padding: '12px',
-      borderRadius: '6px',
-      fontWeight: '500',
-      cursor: 'pointer',
-      transition: 'background-color 0.2s',
-      border: '1px solid #d1d5db',
-      backgroundColor: 'white',
-      color: '#374151',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: '12px'
-    },
-    divider: {
-      display: 'flex',
-      alignItems: 'center',
-      marginBottom: '16px'
-    },
-    dividerLine: {
-      flexGrow: 1,
-      height: '1px',
-      backgroundColor: '#e5e7eb'
-    },
-    dividerText: {
-      padding: '0 16px',
-      color: '#6b7280',
-      fontSize: '14px'
-    },
-    error: {
-      backgroundColor: '#fee2e2',
-      color: '#b91c1c',
-      padding: '12px',
-      borderRadius: '6px',
-      marginBottom: '16px',
-      fontSize: '14px'
-    },
-    link: {
-      color: '#5a45f8',
-      textDecoration: 'none',
-      fontWeight: '500'
-    },
-    footer: {
-      textAlign: 'center',
-      marginTop: '24px',
-      fontSize: '14px',
-      color: '#6b7280'
-    }
-  };
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -146,10 +22,10 @@ export default function Login() {
       await login(email, password);
       router.push('/dashboard');
     } catch (error) {
-      setError('Failed to log in: ' + error.message);
+      setError('Invalid email or password');
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   }
 
   async function handleGoogleSignIn() {
@@ -159,114 +35,147 @@ export default function Login() {
       await signInWithGoogle();
       router.push('/dashboard');
     } catch (error) {
-      setError('Failed to sign in with Google: ' + error.message);
+      setError('Failed to sign in with Google');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }
-
-  async function handleGithubSignIn() {
-    try {
-      setError('');
-      setLoading(true);
-      await signInWithGithub();
-      router.push('/dashboard');
-    } catch (error) {
-      setError('Failed to sign in with GitHub: ' + error.message);
-    }
-    setLoading(false);
   }
 
   return (
-    <div style={styles.container}>
+    <>
       <Head>
-        <title>Sign In - VFied</title>
+        <title>Login - VFied</title>
       </Head>
       
-      <div style={styles.formContainer}>
-        <div style={styles.header}>
-          <div style={styles.logo}>VFied</div>
-          <h1 style={styles.title}>Sign in to your account</h1>
-          <p style={styles.subtitle}>Your Credentials, Your Super-Power</p>
-        </div>
-        
-        {error && (
-          <div style={styles.error}>
-            {error}
-          </div>
-        )}
-        
-        <form style={styles.form} onSubmit={handleSubmit}>
-          <div style={styles.inputGroup}>
-            <label style={styles.label} htmlFor="email-address">Email address</label>
-            <input
-              id="email-address"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              style={styles.input}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-          <div style={styles.inputGroup}>
-            <label style={styles.label} htmlFor="password">Password</label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              style={styles.input}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={styles.button}
-          >
-            {loading ? 'Signing in...' : 'Sign in'}
-          </button>
-        </form>
-        
-        <div style={styles.divider}>
-          <div style={styles.dividerLine}></div>
-          <span style={styles.dividerText}>Or continue with</span>
-          <div style={styles.dividerLine}></div>
+      <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-gray-50">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md">
+          <h2 className="text-center text-3xl font-extrabold text-indigo-600">VFied</h2>
+          <h2 className="mt-2 text-center text-3xl font-extrabold text-gray-900">Sign in to your account</h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Your Credentials, Your Super-Power
+          </p>
         </div>
 
-        <button
-          onClick={handleGoogleSignIn}
-          disabled={loading}
-          style={styles.socialButton}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{marginRight: '8px'}}>
-            <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z" fill="#4285F4" />
-          </svg>
-          Sign in with Google
-        </button>
+        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+          <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+            {error && (
+              <div className="rounded-md bg-red-50 p-4 mb-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-red-800">{error}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <form className="space-y-6" onSubmit={handleSubmit}>
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                  Email address
+                </label>
+                <div className="mt-1">
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
+              </div>
 
-        <button
-          onClick={handleGithubSignIn}
-          disabled={loading}
-          style={styles.socialButton}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{marginRight: '8px'}}>
-            <path fillRule="evenodd" clipRule="evenodd" d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" fill="#24292F" />
-          </svg>
-          Sign in with GitHub
-        </button>
-        
-        <div style={styles.footer}>
-          Don't have an account?{' '}
-          <Link href="/signup">
-            <span style={styles.link}>Sign up</span>
-          </Link>
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                  Password
+                </label>
+                <div className="mt-1">
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <input
+                    id="remember-me"
+                    name="remember-me"
+                    type="checkbox"
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
+                    Remember me
+                  </label>
+                </div>
+
+                <div className="text-sm">
+                  <a href="#" className="font-medium text-indigo-600 hover:text-indigo-500">
+                    Forgot your password?
+                  </a>
+                </div>
+              </div>
+
+              <div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  {loading ? 'Signing in...' : 'Sign in'}
+                </button>
+              </div>
+            </form>
+
+            <div className="mt-6">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">Or continue with</span>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <button
+                  onClick={handleGoogleSignIn}
+                  disabled={loading}
+                  className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                >
+                  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z" fill="#4285F4"/>
+                  </svg>
+                  Sign in with Google
+                </button>
+              </div>
+            </div>
+            
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-600">
+                Don't have an account?{' '}
+                <Link href="/signup" className="font-medium text-indigo-600 hover:text-indigo-500">
+                  Sign up
+                </Link>
+              </p>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

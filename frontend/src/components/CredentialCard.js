@@ -1,13 +1,11 @@
 // src/components/CredentialCard.js
 import React, { useState } from 'react';
 import Link from 'next/link';
-import VerificationRequestForm from './VerificationRequestForm';
 
 const CredentialCard = ({ credential, onUpdate }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
-  const [showVerificationForm, setShowVerificationForm] = useState(false);
   
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -20,76 +18,38 @@ const CredentialCard = ({ credential, onUpdate }) => {
     }
   };
 
-  // Get status badge style
-  const getStatusBadge = (status) => {
-    const baseStyle = {
-      display: 'inline-block',
-      padding: '4px 8px',
-      borderRadius: '12px',
-      fontSize: '12px',
-      fontWeight: '500'
-    };
-    
-    const styles = {
-      verified: { 
-        ...baseStyle, 
-        backgroundColor: '#d1fae5', 
-        color: '#166534' 
-      },
-      pending: { 
-        ...baseStyle, 
-        backgroundColor: '#fef3c7', 
-        color: '#92400e' 
-      },
-      inProgress: { 
-        ...baseStyle, 
-        backgroundColor: '#dbeafe', 
-        color: '#1e40af' 
-      },
-      rejected: { 
-        ...baseStyle, 
-        backgroundColor: '#fee2e2', 
-        color: '#b91c1c' 
-      },
-      draft: { 
-        ...baseStyle, 
-        backgroundColor: '#f3f4f6', 
-        color: '#374151' 
-      }
-    };
-    
-    return styles[status] || styles.draft;
-  };
-
-  // Get icon and color for credential type
+  // Get icon for credential type
   const getTypeIcon = (type) => {
-    return (
-      <div style={{ fontSize: '16px', marginRight: '8px' }}>
-        {type === 'education' ? '🎓' : 
-         type === 'work' ? '💼' : 
-         type === 'certificate' ? '📜' : 
-         type === 'skill' ? '⚡' : '📄'}
-      </div>
-    );
+    return type === 'education' ? '🎓' : 
+           type === 'work' ? '💼' : 
+           type === 'certificate' ? '📜' : 
+           type === 'skill' ? '⚡' : '📄';
   };
 
   const handleRequestVerification = async (e) => {
-    if (e) e.preventDefault();
-    setShowVerificationForm(true);
-  };
-  
-  const handleVerificationComplete = (data) => {
-    // Update the credential in the parent component
-    if (onUpdate) {
-      credential.verificationStatus = 'pending';
-      credential.verificationRequestId = data.requestId;
-      credential.dateSubmitted = new Date().toISOString();
-      onUpdate();
+    e.preventDefault();
+    if (credential.verificationStatus !== 'draft' && credential.status !== 'draft') {
+      return;
     }
     
-    setTimeout(() => {
-      setShowVerificationForm(false);
-    }, 2000);
+    try {
+      setIsRequesting(true);
+      
+      // In a real implementation, you would update the Firestore document
+      // For now, we'll simulate this with a timeout
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Update the credential locally to show the new status
+      credential.verificationStatus = 'pending';
+      credential.status = 'pending';
+      
+      onUpdate(); // Refresh the list
+    } catch (error) {
+      console.error('Failed to request verification:', error);
+      alert('Failed to request verification. Please try again.');
+    } finally {
+      setIsRequesting(false);
+    }
   };
 
   const handleDelete = async (e) => {
@@ -111,171 +71,67 @@ const CredentialCard = ({ credential, onUpdate }) => {
 
   const status = credential.verificationStatus || credential.status || 'draft';
   
-  // Show verification form as a modal
-  if (showVerificationForm) {
-    return (
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000
-      }}>
-        <div style={{
-          width: '90%',
-          maxWidth: '600px',
-          maxHeight: '90vh',
-          overflow: 'auto'
-        }}>
-          <VerificationRequestForm
-            credential={credential}
-            onComplete={handleVerificationComplete}
-            onCancel={() => setShowVerificationForm(false)}
-          />
-        </div>
-      </div>
-    );
-  }
+  const getStatusBadge = (status) => {
+    const badgeClass = status === 'verified' ? 'bg-green-100 text-green-800' :
+                        status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        status === 'rejected' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800';
+    
+    return `px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeClass}`;
+  };
 
   return (
     <div 
-      style={{
-        padding: '16px',
-        borderRadius: '8px',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-        backgroundColor: 'white',
-        marginBottom: '16px',
-        transition: 'transform 0.2s, box-shadow 0.2s',
-        transform: isHovered ? 'translateY(-2px)' : 'none',
-        boxShadow: isHovered ? '0 4px 6px rgba(0, 0, 0, 0.1)' : '0 1px 3px rgba(0, 0, 0, 0.1)'
-      }}
+      className={`bg-white border rounded-lg p-4 mb-4 transition-all duration-200 ${
+        isHovered ? 'shadow-md transform -translate-y-0.5' : 'shadow'
+      }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          {getTypeIcon(credential.type)}
-          <span style={{ 
-            fontSize: '14px', 
-            color: '#6b7280',
-            textTransform: 'capitalize'
-          }}>
-            {credential.type ? credential.type : 'Document'}
+      <div className="flex justify-between items-start mb-3">
+        <div className="flex items-center">
+          <div className="text-xl mr-2">
+            {getTypeIcon(credential.type)}
+          </div>
+          <span className="text-sm text-gray-600 capitalize">
+            {credential.type || 'Document'}
           </span>
         </div>
-        <div style={getStatusBadge(status)}>
+        <div className={getStatusBadge(status)}>
           {status.charAt(0).toUpperCase() + status.slice(1)}
         </div>
       </div>
       
-      <h3 style={{ 
-        fontSize: '16px', 
-        fontWeight: '600', 
-        marginBottom: '4px'
-      }}>
-        {credential.title}
-      </h3>
+      <h3 className="text-lg font-semibold mb-1">{credential.title}</h3>
+      {credential.issuer && <p className="text-sm text-gray-600 mb-2">{credential.issuer}</p>}
       
-      {credential.issuer && (
-        <p style={{ 
-          fontSize: '14px', 
-          color: '#6b7280', 
-          marginBottom: '8px'
-        }}>
-          {credential.issuer}
-        </p>
-      )}
-      
-      <p style={{ fontSize: '12px', color: '#6b7280' }}>
+      <p className="text-xs text-gray-500">
         {credential.dateIssued ? 
           `Issued: ${formatDate(credential.dateIssued)}` : 
           `Uploaded: ${formatDate(credential.createdAt || credential.dateUploaded)}`}
       </p>
       
-      {/* Verification banner for verified credentials */}
       {status === 'verified' && (
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          backgroundColor: '#f0fdf4',
-          padding: '8px 12px',
-          borderRadius: '6px',
-          marginTop: '12px',
-          marginBottom: '12px',
-          fontSize: '14px',
-          color: '#166534'
-        }}>
-          <div style={{ fontSize: '16px', marginRight: '8px' }}>✓</div>
+        <div className="flex items-center bg-green-50 p-2 rounded-md mt-3 mb-3 text-sm text-green-800">
+          <div className="mr-2">✓</div>
           <div>Blockchain Verified</div>
         </div>
       )}
       
-      {/* Pending verification banner */}
       {status === 'pending' && (
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          backgroundColor: '#fffbeb',
-          padding: '8px 12px',
-          borderRadius: '6px',
-          marginTop: '12px',
-          marginBottom: '12px',
-          fontSize: '14px',
-          color: '#92400e'
-        }}>
-          <div style={{ fontSize: '16px', marginRight: '8px' }}>⏳</div>
+        <div className="flex items-center bg-yellow-50 p-2 rounded-md mt-3 mb-3 text-sm text-yellow-800">
+          <div className="mr-2">⏳</div>
           <div>Verification in progress</div>
         </div>
       )}
       
-      {/* In Progress verification banner */}
-      {status === 'inProgress' && (
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          backgroundColor: '#eff6ff',
-          padding: '8px 12px',
-          borderRadius: '6px',
-          marginTop: '12px',
-          marginBottom: '12px',
-          fontSize: '14px',
-          color: '#1e40af'
-        }}>
-          <div style={{ fontSize: '16px', marginRight: '8px' }}>🔍</div>
-          <div>Verification details being confirmed</div>
-        </div>
-      )}
-      
-      {/* Rejected verification banner */}
-      {status === 'rejected' && (
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          backgroundColor: '#fef2f2',
-          padding: '8px 12px',
-          borderRadius: '6px',
-          marginTop: '12px',
-          marginBottom: '12px',
-          fontSize: '14px',
-          color: '#b91c1c'
-        }}>
-          <div style={{ fontSize: '16px', marginRight: '8px' }}>❌</div>
-          <div>Verification failed. See details.</div>
-        </div>
-      )}
-      
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px', borderTop: '1px solid #e5e7eb', paddingTop: '12px' }}>
+      <div className="flex justify-between mt-4 pt-3 border-t border-gray-200">
         {(credential.documentUrl || credential.fileUrl) ? (
           <a 
             href={credential.documentUrl || credential.fileUrl} 
             target="_blank" 
             rel="noopener noreferrer"
-            style={{ color: '#5a45f8', fontSize: '12px', fontWeight: '500', textDecoration: 'none' }}
+            className="text-indigo-600 text-xs font-medium hover:text-indigo-800"
           >
             View Document
           </a>
@@ -283,18 +139,10 @@ const CredentialCard = ({ credential, onUpdate }) => {
           <span></span>
         )}
         
-        <div>
+        <div className="flex space-x-4">
           {(status === 'draft') && (
             <button 
-              style={{ 
-                backgroundColor: 'transparent', 
-                border: 'none', 
-                color: '#15803d', 
-                fontSize: '12px',
-                fontWeight: '500',
-                cursor: 'pointer',
-                marginLeft: '8px'
-              }}
+              className="text-green-600 text-xs font-medium hover:text-green-800"
               onClick={handleRequestVerification}
               disabled={isRequesting}
             >
@@ -302,50 +150,15 @@ const CredentialCard = ({ credential, onUpdate }) => {
             </button>
           )}
           
-          {(status === 'rejected') && (
-            <button 
-              style={{ 
-                backgroundColor: 'transparent', 
-                border: 'none', 
-                color: '#15803d', 
-                fontSize: '12px',
-                fontWeight: '500',
-                cursor: 'pointer',
-                marginLeft: '8px'
-              }}
-              onClick={handleRequestVerification}
-              disabled={isRequesting}
-            >
-              Resubmit
-            </button>
-          )}
-          
-          <Link
+          <Link 
             href={`/credentials/${credential.id}`}
-            style={{ 
-              backgroundColor: 'transparent', 
-              border: 'none', 
-              color: '#5a45f8', 
-              fontSize: '12px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              marginLeft: '8px',
-              textDecoration: 'none'
-            }}
+            className="text-indigo-600 text-xs font-medium hover:text-indigo-800"
           >
             Details
           </Link>
           
           <button 
-            style={{ 
-              backgroundColor: 'transparent', 
-              border: 'none', 
-              color: '#b91c1c', 
-              fontSize: '12px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              marginLeft: '8px'
-            }}
+            className="text-red-600 text-xs font-medium hover:text-red-800"
             onClick={handleDelete}
             disabled={isDeleting}
           >

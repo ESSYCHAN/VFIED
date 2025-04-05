@@ -3,52 +3,248 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  /* Add these CSS variables that your config is referencing */
-  --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
-  --card: 0 0% 100%;
-  --card-foreground: 222.2 84% 4.9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 222.2 84% 4.9%;
-  --primary: 221.2 83.2% 53.3%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 210 40% 96.1%;
-  --secondary-foreground: 222.2 47.4% 11.2%;
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-  --accent: 210 40% 96.1%;
-  --accent-foreground: 222.2 47.4% 11.2%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
-  --ring: 221.2 83.2% 53.3%;
-  --radius: 0.5rem;
-  
-  /* Chart colors */
-  --chart-1: 221.2 83.2% 53.3%;
-  --chart-2: 280 83.2% 53.3%;
-  --chart-3: 322 83.2% 53.3%;
-  --chart-4: 43 83.2% 53.3%;
-  --chart-5: 155 83.2% 53.3%;
+/* Additional global styles */
+body {
+  @apply antialiased text-gray-900 bg-gray-50;
 }
 
-/* Navigation Links */
-nav a {
-  color: #333;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  transition: background-color 0.2s;
-  text-decoration: none; /* Matches your existing style */
+h1, h2, h3, h4, h5, h6 {
+  @apply font-medium;
 }
 
-nav a:hover {
-  background-color: #f0f0f0;
+a {
+  @apply text-indigo-600 hover:text-indigo-800;
 }
 
-/* Active link state (optional) */
-nav a[aria-current="page"] {
-  font-weight: 600;
-  background-color: #e0e0e0;
+button:focus, a:focus {
+  @apply outline-none ring-2 ring-offset-2 ring-indigo-500;
+}
+
+/* Custom component classes */
+@layer components {
+  .btn {
+    @apply inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm;
+  }
+
+  .btn-primary {
+    @apply text-white bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500;
+  }
+
+  .btn-secondary {
+    @apply text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:ring-indigo-500;
+  }
+
+  .btn-outline {
+    @apply text-indigo-700 bg-white border-indigo-600 hover:bg-indigo-50 focus:ring-indigo-500;
+  }
+
+  .btn-danger {
+    @apply text-white bg-red-600 hover:bg-red-700 focus:ring-red-500;
+  }
+
+  .form-input {
+    @apply block w-full shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm border-gray-300 rounded-md;
+  }
+
+  .form-select {
+    @apply block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm;
+  }
+
+  .form-checkbox {
+    @apply h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded;
+  }
+
+  .form-label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+  }
+
+  .card {
+    @apply bg-white overflow-hidden shadow rounded-lg;
+  }
+
+  .card-header {
+    @apply px-4 py-5 border-b border-gray-200 sm:px-6;
+  }
+
+  .card-body {
+    @apply px-4 py-5 sm:p-6;
+  }
+
+  .card-footer {
+    @apply px-4 py-4 border-t border-gray-200 sm:px-6;
+  }
+
+  .stat-card {
+    @apply bg-white overflow-hidden shadow rounded-lg px-4 py-5 sm:p-6;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-success {
+    @apply bg-green-100 text-green-800;
+  }
+
+  .badge-warning {
+    @apply bg-yellow-100 text-yellow-800;
+  }
+
+  .badge-danger {
+    @apply bg-red-100 text-red-800;
+  }
+
+  .badge-info {
+    @apply bg-blue-100 text-blue-800;
+  }
+
+  .badge-default {
+    @apply bg-gray-100 text-gray-800;
+  }
+}
+
+/* Animations */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-in-out;
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Custom styles for VFied application */
+.vfied-logo {
+  @apply text-2xl font-bold text-indigo-600;
+}
+
+.nav-link {
+  @apply px-3 py-2 rounded-md text-sm font-medium;
+}
+
+.nav-link-active {
+  @apply bg-indigo-100 text-indigo-700;
+}
+
+.nav-link-inactive {
+  @apply text-gray-700 hover:bg-gray-100;
+}
+
+.auth-container {
+  @apply min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-gray-50;
+}
+
+.auth-card {
+  @apply bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10;
+}
+
+/* Dashboard specific styling */
+.credential-card {
+  @apply bg-white rounded-lg shadow p-4 mb-4 transition-all duration-200;
+}
+
+.credential-card:hover {
+  @apply shadow-md transform -translate-y-0.5;
+}
+
+.credential-type-icon {
+  @apply text-xl mr-2;
+}
+
+.credential-status-badge {
+  @apply px-2 inline-flex text-xs leading-5 font-semibold rounded-full;
+}
+
+.credential-status-verified {
+  @apply bg-green-100 text-green-800;
+}
+
+.credential-status-pending {
+  @apply bg-yellow-100 text-yellow-800;
+}
+
+.credential-status-rejected {
+  @apply bg-red-100 text-red-800;
+}
+
+.credential-status-draft {
+  @apply bg-gray-100 text-gray-800;
+}
+
+.credential-title {
+  @apply text-lg font-semibold mb-1;
+}
+
+.credential-issuer {
+  @apply text-sm text-gray-600 mb-2;
+}
+
+.credential-date {
+  @apply text-xs text-gray-500;
+}
+
+.credential-verification-banner {
+  @apply flex items-center p-2 rounded-md mt-3 mb-3 text-sm;
+}
+
+.credential-verification-banner-verified {
+  @apply bg-green-50 text-green-800;
+}
+
+.credential-verification-banner-pending {
+  @apply bg-yellow-50 text-yellow-800;
+}
+
+.credential-actions {
+  @apply flex justify-between mt-4 pt-3 border-t border-gray-200;
+}
+
+.credential-action-link {
+  @apply text-indigo-600 text-xs font-medium hover:text-indigo-800;
+}
+
+.credential-action-button {
+  @apply text-xs font-medium;
+}
+
+.credential-action-delete {
+  @apply text-red-600 hover:text-red-800;
+}
+
+.credential-action-verify {
+  @apply text-green-600 hover:text-green-800;
 }
