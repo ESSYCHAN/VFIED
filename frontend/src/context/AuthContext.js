@@ -10,15 +10,20 @@ import {
 } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 
-const AuthContext = createContext();
+// Create the context with a default value
+const AuthContext = createContext(null);
 
 export function useAuth() {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+  if (context === null) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
 }
 
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
-  const [userRole, setUserRole] = useState(null); // Add this line
+  const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
   function signup(email, password) {
@@ -39,39 +44,31 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    // Use a try-catch block to handle any potential initialization errors
-    try {
-      const unsubscribe = onAuthStateChanged(auth, async (user) => {
-        setCurrentUser(user);
-        
-        if (user) {
-          // Get the user's ID token to check for custom claims (roles)
-          try {
-            const tokenResult = await user.getIdTokenResult();
-            // Set role from custom claims
-            const role = tokenResult.claims?.role || 'user';
-            setUserRole(role);
-          } catch (error) {
-            console.error("Error getting token:", error);
-            setUserRole('user');
-          }
-        } else {
-          setUserRole(null);
-        }
-        
-        setLoading(false);
-      });
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setCurrentUser(user);
       
-      return unsubscribe;
-    } catch (error) {
-      console.error("Auth state change error:", error);
+      if (user) {
+        try {
+          const tokenResult = await user.getIdTokenResult();
+          const role = tokenResult.claims?.role || 'user';
+          setUserRole(role);
+        } catch (error) {
+          console.error("Error getting token:", error);
+          setUserRole('user');
+        }
+      } else {
+        setUserRole(null);
+      }
+      
       setLoading(false);
-    }
+    });
+    
+    return unsubscribe;
   }, []);
 
   const value = {
     currentUser,
-    userRole,  // Add this
+    userRole,
     signup,
     login,
     signInWithGoogle,

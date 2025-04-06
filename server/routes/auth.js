@@ -68,3 +68,33 @@ async function getUserRole(uid) {
   const user = await admin.auth().getUser(uid);
   return user.customClaims?.role || 'user';
 }
+
+// server/routes/auth.js
+// Add this new route
+
+router.post('/set-role', auth, async (req, res) => {
+  try {
+    const { role } = req.body;
+    const uid = req.user.uid;
+    
+    // Validate the role
+    const validRoles = ['user', 'employer', 'recruiter', 'admin', 'verifier'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+    
+    // Set the custom claim
+    await admin.auth().setCustomUserClaims(uid, { role });
+    
+    // Update the user document in Firestore
+    await admin.firestore().collection('users').doc(uid).update({
+      role,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    
+    res.json({ success: true, message: `Role set to ${role}` });
+  } catch (error) {
+    console.error('Error setting role:', error);
+    res.status(500).json({ error: 'Failed to set role: ' + error.message });
+  }
+});

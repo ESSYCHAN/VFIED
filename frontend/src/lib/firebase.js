@@ -1,9 +1,9 @@
-// src/firebase/config.js
+
 // src/firebase/config.js
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
-
+import { setPersistence, browserSessionPersistence } from "firebase/auth";
 
 // Your Firebase configuration
 const firebaseConfig = {
@@ -23,6 +23,16 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 
 export { app, db, auth, firebaseConfig};
+
+// After initializing auth
+setPersistence(auth, browserSessionPersistence)
+  .then(() => {
+    // Session persistence will clear when the tab is closed
+    console.log("Set auth persistence to session");
+  })
+  .catch((error) => {
+    console.error("Error setting persistence:", error);
+  });
 
 // Helper functions
 export const isFirebaseConfigured = () => !!firebaseConfig.apiKey;
