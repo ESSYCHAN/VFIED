@@ -52,3 +52,4 @@ node_modules/
 artifacts/
 cache/
 .env
+server/serviceAccountKey.json
