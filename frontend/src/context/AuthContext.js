@@ -1,5 +1,5 @@
 // src/context/AuthContext.js
-import { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { 
   onAuthStateChanged, 
   createUserWithEmailAndPassword, 
@@ -18,6 +18,7 @@ export function useAuth() {
 
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
+  const [userRole, setUserRole] = useState(null); // Add this line
   const [loading, setLoading] = useState(true);
 
   function signup(email, password) {
@@ -40,8 +41,24 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     // Use a try-catch block to handle any potential initialization errors
     try {
-      const unsubscribe = onAuthStateChanged(auth, (user) => {
+      const unsubscribe = onAuthStateChanged(auth, async (user) => {
         setCurrentUser(user);
+        
+        if (user) {
+          // Get the user's ID token to check for custom claims (roles)
+          try {
+            const tokenResult = await user.getIdTokenResult();
+            // Set role from custom claims
+            const role = tokenResult.claims?.role || 'user';
+            setUserRole(role);
+          } catch (error) {
+            console.error("Error getting token:", error);
+            setUserRole('user');
+          }
+        } else {
+          setUserRole(null);
+        }
+        
         setLoading(false);
       });
       
@@ -54,6 +71,7 @@ export function AuthProvider({ children }) {
 
   const value = {
     currentUser,
+    userRole,  // Add this
     signup,
     login,
     signInWithGoogle,

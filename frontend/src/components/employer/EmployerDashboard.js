@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { db } from '../../lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import Link from 'next/link';
-import { Web3Context } from '../context/Web3Context'; 
+import { useWeb3 } from '../context/Web3Context'; 
 
 export default function EmployerDashboard() {
   const { currentUser, userRole } = useAuth();

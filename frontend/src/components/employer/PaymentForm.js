@@ -1,4 +1,8 @@
-import { useStripe, useElements } from '@stripe/react-stripe-js';
+
+import { useState } from 'react';
+import { useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
+import { db } from '../../lib/firebase';
+
 
 export default function PaymentForm({ intent }) {
   const stripe = useStripe();

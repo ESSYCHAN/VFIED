@@ -1,11 +1,14 @@
 // src/components/Layout.js
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+
 import { useAuth } from '@/context/AuthContext';
 
 export default function Layout({ children }) {
+  const { currentUser, userRole, logout } = useAuth();
   const router = useRouter();
-  const { currentUser, logout } = useAuth();
+
+
   
   const handleLogout = async () => {
     try {
@@ -36,6 +39,35 @@ export default function Layout({ children }) {
               >
                 Dashboard
               </Link>
+              
+              {/* Employer-specific links */}
+              {userRole === 'employer' && (
+                <>
+                  <Link 
+                    href="/requisitions" 
+                    className={`px-4 py-2 rounded-md text-sm font-medium ${isActive('/requisitions')}`}
+                  >
+                    Job Requisitions
+                  </Link>
+                  <Link 
+                    href="/requisitions/new" 
+                    className={`px-4 py-2 rounded-md text-sm font-medium ${isActive('/requisitions/new')}`}
+                  >
+                    Post New Job
+                  </Link>
+                </>
+              )}
+              
+              {/* Recruiter-specific links */}
+              {userRole === 'recruiter' && (
+                <Link 
+                  href="/recruiter/dashboard" 
+                  className={`px-4 py-2 rounded-md text-sm font-medium ${isActive('/recruiter/dashboard')}`}
+                >
+                  Recruiter Tools
+                </Link>
+              )}
+              
               <Link 
                 href="/profile" 
                 className={`px-4 py-2 rounded-md text-sm font-medium ${isActive('/profile')}`}
@@ -54,6 +86,13 @@ export default function Layout({ children }) {
       </div>
       
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        {/* Show role indicator to help with debugging */}
+        {process.env.NODE_ENV === 'development' && userRole && (
+          <div className="mb-4 p-2 bg-gray-100 text-sm text-gray-600 rounded">
+            Current role: {userRole}
+          </div>
+        )}
+        
         {children}
       </main>
     </div>

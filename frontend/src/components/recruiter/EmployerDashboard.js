@@ -1,10 +1,10 @@
 import { useState } from "react";
 // import { Web3Context } from '../context/Web3Context';
-import { Web3Context } from '@/context/Web3Context';
+import { useWeb3 } from '@/context/Web3Context';
 import { loadStripe } from "@stripe/stripe-js";
 
 export default function EmployerDashboard() {
-  const { account } = Web3Context();
+  const { account } = useWeb3();
   const [jobData, setJobData] = useState({
     title: "",
     description: "",

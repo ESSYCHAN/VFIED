@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useWeb3 } from "../context/Web3Context";
+import { useWeb3 } from "../../context/Web3Context"; // Fixed import
+import { db } from '../../lib/firebase'; // Add missing import
 
 export default function RequisitionList(employerId) {
   const { account, library } = useWeb3();

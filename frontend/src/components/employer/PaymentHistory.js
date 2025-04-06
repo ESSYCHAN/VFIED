@@ -1,4 +1,7 @@
-import { FirestoreContext } from '../../context/FirestoreContext';
+// Fix for frontend/src/components/employer/PaymentHistory.js
+import { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { db } from '../../lib/firebase';
 import { format } from 'date-fns';
 
 export default function PaymentHistory() {
