@@ -85,6 +85,35 @@ export default function Login() {
       setLoading(false);
     }
   };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    
+    try {
+      // Sign in with email/password
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      
+      // Update the user's role in Firestore
+      const userDocRef = doc(db, 'users', user.uid);
+      await updateDoc(userDocRef, {
+        role: selectedRole,
+        updatedAt: new Date()
+      });
+      
+      // Redirect to the appropriate dashboard
+      if (selectedRole === 'employer') {
+        router.push('/requisitions');
+      } else {
+        router.push('/dashboard');
+      }
+    } catch (error) {
+      setError('Failed to sign in: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">

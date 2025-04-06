@@ -43,28 +43,40 @@ export function AuthProvider({ children }) {
     return signOut(auth);
   }
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-      
-      if (user) {
-        try {
-          const tokenResult = await user.getIdTokenResult();
-          const role = tokenResult.claims?.role || 'user';
-          setUserRole(role);
-        } catch (error) {
-          console.error("Error getting token:", error);
-          setUserRole('user');
-        }
-      } else {
-        setUserRole(null);
-      }
-      
-      setLoading(false);
-    });
+// In your AuthProvider useEffect
+useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    setCurrentUser(user);
     
-    return unsubscribe;
-  }, []);
+    if (user) {
+      try {
+        // First try to get role from custom claims
+        const tokenResult = await user.getIdTokenResult();
+        let role = tokenResult.claims?.role;
+        
+        // If no role in claims, try to get it from Firestore
+        if (!role) {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists() && userDoc.data().role) {
+            role = userDoc.data().role;
+            console.log('Found role in Firestore:', role);
+          }
+        }
+        
+        setUserRole(role || 'user');
+      } catch (error) {
+        console.error("Error getting user role:", error);
+        setUserRole('user');
+      }
+    } else {
+      setUserRole(null);
+    }
+    
+    setLoading(false);
+  });
+  
+  return unsubscribe;
+}, []);
 
   const value = {
     currentUser,

@@ -34,6 +34,17 @@ export default function Dashboard() {
   }
   
   const { currentUser, userRole, logout } = auth;
+
+  useEffect(() => {
+    const checkRole = async () => {
+      if (currentUser) {
+        const token = await currentUser.getIdTokenResult();
+        console.log("Auth Token Claims:", token.claims);
+        console.log("Role from claims:", token.claims.role || "No role in claims");
+      }
+    };
+    checkRole();
+  }, [currentUser]);
   
   // Redirect if not logged in
   useEffect(() => {
