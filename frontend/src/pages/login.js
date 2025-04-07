@@ -1,20 +1,37 @@
-// src/pages/login.js
-import { useState } from 'react';
+// frontend/src/pages/login.js
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Head from 'next/head';
+import NetworkStatus from '../components/NetworkStatus';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
   const { login, signInWithGoogle, userRole } = useAuth();
   const router = useRouter();
 
+  // Handle network status change
+  const handleNetworkStatusChange = (online) => {
+    setIsOnline(online);
+    if (!online && loading) {
+      setLoading(false);
+      setError('Network connection lost. Please check your internet connection and try again.');
+    }
+  };
+
   async function handleSubmit(e) {
     e.preventDefault();
+    
+    // Check if online before attempting login (client-side only)
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      setError('You are offline. Please check your internet connection and try again.');
+      return;
+    }
     
     try {
       setError('');
@@ -32,6 +49,12 @@ export default function Login() {
   }
 
   async function handleGoogleSignIn() {
+    // Check if online before attempting Google sign-in (client-side only)
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      setError('You are offline. Please check your internet connection and try again.');
+      return;
+    }
+
     try {
       setError('');
       setLoading(true);
@@ -64,6 +87,8 @@ export default function Login() {
         <title>Login - VFied</title>
       </Head>
       
+      <NetworkStatus onStatusChange={handleNetworkStatusChange} />
+      
       <div className="max-w-md w-full space-y-8">
         <div>
           <h1 className="text-center text-3xl font-extrabold text-indigo-600">VFied</h1>
@@ -79,6 +104,12 @@ export default function Login() {
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
             {error}
+          </div>
+        )}
+        
+        {!isOnline && (
+          <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative">
+            You are currently offline. Sign-in functionality requires an internet connection.
           </div>
         )}
         
@@ -117,7 +148,7 @@ export default function Login() {
           <div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !isOnline}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
             >
               {loading ? 'Signing in...' : 'Sign in'}
@@ -138,7 +169,7 @@ export default function Login() {
           <div className="mt-6">
             <button
               onClick={handleGoogleSignIn}
-              disabled={loading}
+              disabled={loading || !isOnline}
               className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="mr-2">

@@ -1,213 +1,91 @@
-// src/pages/debug-firebase.js
-import React, { useState } from 'react';
-import Layout from '@/components/Layout';
-import FirebaseTroubleshooter from '@/components/FirebaseTroubleshooter';
-import { signInWithGoogle } from '@/lib/firebase';
+// frontend/src/pages/debug-firebase.js
+import { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { auth } from '../lib/firebase';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import FirebaseTroubleshooter from '../components/FirebaseTroubleshooter';
 
-const FirebaseDebugPage = () => {
-  const [googleSignInResult, setGoogleSignInResult] = useState(null);
-  const [signInError, setSignInError] = useState(null);
-  const [loading, setLoading] = useState(false);
+export default function DebugFirebase() {
+  const [status, setStatus] = useState('idle');
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
+  const { currentUser } = useAuth();
 
-  const handleGoogleSignIn = async () => {
-    setLoading(true);
-    setSignInError(null);
+  async function testGoogleSignIn() {
     try {
-      const user = await signInWithGoogle();
-      setGoogleSignInResult({
-        success: true,
+      setStatus('loading');
+      setError(null);
+      
+      // Using direct Firebase auth function, not the imported one
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      
+      setResult({
         user: {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL
+          uid: result.user.uid,
+          email: result.user.email,
+          displayName: result.user.displayName
         }
       });
+      setStatus('success');
     } catch (error) {
-      console.error('Google sign-in test error:', error);
-      setSignInError(error.message || 'An unknown error occurred');
-      setGoogleSignInResult({
-        success: false,
-        error: error.message
+      console.error('Debug sign-in error:', error);
+      setError({
+        code: error.code,
+        message: error.message,
+        stack: error.stack
       });
-    } finally {
-      setLoading(false);
+      setStatus('error');
     }
-  };
+  }
 
   return (
-    <Layout>
-      <div style={styles.container}>
-        <h1 style={styles.title}>Firebase Debug Page</h1>
-        <p style={styles.description}>
-          This page helps you diagnose issues with Firebase configuration and connection.
-        </p>
-
-        <div style={styles.card}>
-          <h2 style={styles.cardTitle}>Environment Variables</h2>
-          <p>These should all have values. If any are undefined, you need to update your .env.local file:</p>
-          
-          <table style={styles.table}>
-            <tbody>
-              <tr>
-                <td style={styles.cellKey}>NEXT_PUBLIC_FIREBASE_API_KEY</td>
-                <td style={styles.cellValue}>
-                  {process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? '✓ Defined' : '✗ Undefined'}
-                </td>
-              </tr>
-              <tr>
-                <td style={styles.cellKey}>NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN</td>
-                <td style={styles.cellValue}>
-                  {process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ? '✓ Defined' : '✗ Undefined'}
-                </td>
-              </tr>
-              <tr>
-                <td style={styles.cellKey}>NEXT_PUBLIC_FIREBASE_PROJECT_ID</td>
-                <td style={styles.cellValue}>
-                  {process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ? '✓ Defined' : '✗ Undefined'}
-                </td>
-              </tr>
-              <tr>
-                <td style={styles.cellKey}>NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET</td>
-                <td style={styles.cellValue}>
-                  {process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ? '✓ Defined' : '✗ Undefined'}
-                </td>
-              </tr>
-              <tr>
-                <td style={styles.cellKey}>NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID</td>
-                <td style={styles.cellValue}>
-                  {process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ? '✓ Defined' : '✗ Undefined'}
-                </td>
-              </tr>
-              <tr>
-                <td style={styles.cellKey}>NEXT_PUBLIC_FIREBASE_APP_ID</td>
-                <td style={styles.cellValue}>
-                  {process.env.NEXT_PUBLIC_FIREBASE_APP_ID ? '✓ Defined' : '✗ Undefined'}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div style={styles.card}>
-          <h2 style={styles.cardTitle}>Test Google Sign-In</h2>
-          <p>Click the button below to test Google sign-in:</p>
-          
-          <button 
-            onClick={handleGoogleSignIn} 
-            disabled={loading} 
-            style={styles.button}
-          >
-            {loading ? 'Testing...' : 'Test Google Sign-In'}
-          </button>
-
-          {googleSignInResult && (
-            <div style={styles.result}>
-              <h3 style={styles.resultTitle}>Test Result:</h3>
-              <div style={styles.resultContent}>
-                <pre>{JSON.stringify(googleSignInResult, null, 2)}</pre>
-              </div>
-            </div>
-          )}
-
-          {signInError && (
-            <div style={styles.error}>
-              <h3 style={styles.errorTitle}>Error:</h3>
-              <p>{signInError}</p>
-            </div>
-          )}
-        </div>
-
-        <FirebaseTroubleshooter />
+    <div className="max-w-3xl mx-auto p-6">
+      <h1 className="text-2xl font-bold mb-4">Firebase Debugging</h1>
+      
+      <div className="mb-6 bg-blue-50 p-4 rounded">
+        <h2 className="text-lg font-semibold mb-2">Current Auth State</h2>
+        {currentUser ? (
+          <div>
+            <p><strong>User ID:</strong> {currentUser.uid}</p>
+            <p><strong>Email:</strong> {currentUser.email}</p>
+            <p><strong>Display Name:</strong> {currentUser.displayName || 'Not set'}</p>
+          </div>
+        ) : (
+          <p>Not authenticated</p>
+        )}
       </div>
-    </Layout>
+      
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold mb-2">Test Google Sign-In</h2>
+        <button
+          onClick={testGoogleSignIn}
+          disabled={status === 'loading'}
+          className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+        >
+          {status === 'loading' ? 'Signing in...' : 'Test Google Auth'}
+        </button>
+        
+        {status === 'success' && (
+          <div className="mt-4 p-4 bg-green-50 rounded">
+            <h3 className="font-medium text-green-800">Sign-in successful</h3>
+            <pre className="mt-2 p-2 bg-white rounded text-sm overflow-auto">
+              {JSON.stringify(result, null, 2)}
+            </pre>
+          </div>
+        )}
+        
+        {status === 'error' && (
+          <div className="mt-4 p-4 bg-red-50 rounded">
+            <h3 className="font-medium text-red-800">Sign-in failed</h3>
+            <pre className="mt-2 p-2 bg-white rounded text-sm overflow-auto">
+              {JSON.stringify(error, null, 2)}
+            </pre>
+          </div>
+        )}
+      </div>
+      
+      <FirebaseTroubleshooter />
+    </div>
   );
-};
-
-const styles = {
-  container: {
-    maxWidth: '800px',
-    margin: '0 auto',
-    padding: '20px',
-  },
-  title: {
-    fontSize: '28px',
-    fontWeight: 'bold',
-    marginBottom: '16px',
-  },
-  description: {
-    fontSize: '16px',
-    marginBottom: '24px',
-    color: '#666',
-  },
-  card: {
-    backgroundColor: 'white',
-    borderRadius: '8px',
-    boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)',
-    padding: '20px',
-    marginBottom: '24px',
-  },
-  cardTitle: {
-    fontSize: '20px',
-    fontWeight: 'bold',
-    marginBottom: '16px',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-    marginTop: '16px',
-  },
-  cellKey: {
-    padding: '8px',
-    border: '1px solid #ddd',
-    fontFamily: 'monospace',
-    backgroundColor: '#f5f5f5',
-  },
-  cellValue: {
-    padding: '8px',
-    border: '1px solid #ddd',
-  },
-  button: {
-    backgroundColor: '#5a45f8',
-    color: 'white',
-    border: 'none',
-    padding: '10px 16px',
-    borderRadius: '4px',
-    fontSize: '16px',
-    cursor: 'pointer',
-    marginTop: '16px',
-  },
-  result: {
-    marginTop: '16px',
-    padding: '16px',
-    backgroundColor: '#f5f8ff',
-    borderRadius: '4px',
-  },
-  resultTitle: {
-    fontSize: '16px',
-    fontWeight: 'bold',
-    marginBottom: '8px',
-  },
-  resultContent: {
-    maxHeight: '200px',
-    overflow: 'auto',
-    backgroundColor: '#fff',
-    padding: '8px',
-    borderRadius: '4px',
-    border: '1px solid #ddd',
-  },
-  error: {
-    marginTop: '16px',
-    padding: '16px',
-    backgroundColor: '#fff5f5',
-    borderRadius: '4px',
-    color: '#e53e3e',
-  },
-  errorTitle: {
-    fontSize: '16px',
-    fontWeight: 'bold',
-    marginBottom: '8px',
-  },
-};
-
-export default FirebaseDebugPage;
+}

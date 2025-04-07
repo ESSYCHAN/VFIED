@@ -1,8 +1,7 @@
-
-// src/firebase/config.js
+// frontend/src/lib/firebase.js
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 
 // Your Firebase configuration
 const firebaseConfig = {
@@ -12,24 +11,45 @@ const firebaseConfig = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
-  
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig, 'VFiedApp');
-const db = getFirestore(app);
-const auth = getAuth(app);
+// Check if Firebase is configured properly
+const isConfigValid = () => {
+  return firebaseConfig.apiKey && 
+         firebaseConfig.authDomain && 
+         firebaseConfig.projectId;
+};
 
-export { db, auth};
+// Initialize Firebase with error handling
+let app;
+let db;
+let auth;
 
-
-
-if (process.env.NODE_ENV === 'development') {
-  // Uncomment if using emulators
-  // connectAuthEmulator(auth, 'http://localhost:9099');
-  // connectFirestoreEmulator(db, 'localhost', 8080);
+try {
+  if (!isConfigValid()) {
+    console.error('Firebase configuration is incomplete or missing. Check your environment variables.');
+  }
+  
+  app = initializeApp(firebaseConfig, 'VFiedApp');
+  db = getFirestore(app);
+  auth = getAuth(app);
+  
+  console.log('Firebase initialized successfully');
+  
+  // Connect to emulators in development mode (only in browser environment)
+  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true') {
+    try {
+      connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
+      connectFirestoreEmulator(db, 'localhost', 8080);
+      console.log('Connected to Firebase emulators');
+    } catch (emulatorError) {
+      console.error('Failed to connect to Firebase emulators:', emulatorError);
+    }
+  }
+} catch (error) {
+  console.error('Error initializing Firebase:', error);
 }
 
 // Helper functions
-export const isFirebaseConfigured = () => !!firebaseConfig.apiKey;
-export const initializeFirebase = () => app;
+export const isFirebaseConfigured = () => !!app && !!auth && !!db;
+export { db, auth, app, firebaseConfig };

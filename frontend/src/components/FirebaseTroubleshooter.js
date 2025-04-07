@@ -1,243 +1,144 @@
-// src/components/FirebaseTroubleshooter.js
-import React, { useState, useEffect } from 'react';
-import { app, db, auth, isFirebaseConfigured } from '@/lib/firebase';
+// frontend/src/components/FirebaseTroubleshooter.js
+import { useState, useEffect } from 'react';
+import { auth, db } from '../lib/firebase';
+import { collection, addDoc, getDocs, deleteDoc } from 'firebase/firestore';
 
-const FirebaseTroubleshooter = () => {
-  const [firebaseStatus, setFirebaseStatus] = useState({
-    initialized: false,
-    configValid: false,
-    connection: 'checking',
-    firestore: 'checking',
-    auth: 'checking',
-    details: {}
-  });
+export default function FirebaseTroubleshooter() {
+  const [testResult, setTestResult] = useState(null);
+  const [firebaseConfig, setFirebaseConfig] = useState({});
+  const [loading, setLoading] = useState(false);
 
+  // Check Firebase configuration
   useEffect(() => {
-    checkFirebaseStatus();
+    if (typeof window !== 'undefined') {
+      setFirebaseConfig({
+        apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? '✓ Set' : '✗ Missing',
+        authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ? '✓ Set' : '✗ Missing',
+        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ? '✓ Set' : '✗ Missing',
+        appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ? '✓ Set' : '✗ Missing'
+      });
+    }
   }, []);
 
-  const checkFirebaseStatus = async () => {
-    const status = {
-      initialized: Boolean(app),
-      configValid: isFirebaseConfigured(),
-      connection: 'checking',
-      firestore: 'checking',
-      auth: 'checking',
-      details: {}
-    };
-
-    // Check if Firebase is initialized
-    if (!app) {
-      status.details.initError = 'Firebase app not initialized';
-      setFirebaseStatus(status);
-      return;
-    }
-
-    // Check config validity
-    if (!status.configValid) {
-      status.details.configError = 'Firebase configuration is incomplete';
-    }
-
-    // Check Firebase connection
+  // Run Firestore test
+  async function testFirestore() {
+    setLoading(true);
+    setTestResult(null);
+    
     try {
-      // Check Firestore connection
-      if (db) {
-        try {
-          const testCollection = db.collection('_connectionTest');
-          await testCollection.doc('test').set({ timestamp: new Date() });
-          await testCollection.doc('test').delete();
-          status.firestore = 'connected';
-        } catch (error) {
-          status.firestore = 'error';
-          status.details.firestoreError = error.message;
+      // Create a test document
+      const testCollection = collection(db, 'firestoreTest');
+      const testData = { 
+        testField: 'Test Value', 
+        timestamp: new Date().toISOString() 
+      };
+      
+      const docRef = await addDoc(testCollection, testData);
+      console.log("Test document written with ID: ", docRef.id);
+      
+      // Read the test collection
+      const querySnapshot = await getDocs(testCollection);
+      const docs = [];
+      querySnapshot.forEach((doc) => {
+        docs.push({ id: doc.id, ...doc.data() });
+      });
+      
+      // Clean up - delete the documents
+      for (const doc of docs) {
+        await deleteDoc(docRef);
+      }
+      
+      setTestResult({
+        success: true,
+        message: 'Firestore connection is working correctly',
+        details: {
+          testDocId: docRef.id,
+          documentsFound: docs.length
         }
-      } else {
-        status.firestore = 'not initialized';
-      }
-
-      // Check Auth connection
-      if (auth) {
-        try {
-          await auth.currentUser?.reload();
-          status.auth = 'connected';
-        } catch (error) {
-          // This will error if no user is logged in, which is fine
-          if (error.code === 'auth/no-current-user') {
-            status.auth = 'connected';
-          } else {
-            status.auth = 'error';
-            status.details.authError = error.message;
-          }
-        }
-      } else {
-        status.auth = 'not initialized';
-      }
-
-      // Overall connection status
-      if (status.firestore === 'connected' || status.auth === 'connected') {
-        status.connection = 'connected';
-      } else {
-        status.connection = 'error';
-      }
+      });
     } catch (error) {
-      status.connection = 'error';
-      status.details.connectionError = error.message;
+      console.error("Firestore test error:", error);
+      setTestResult({
+        success: false,
+        message: 'Firestore test failed',
+        error: {
+          code: error.code,
+          message: error.message
+        }
+      });
+    } finally {
+      setLoading(false);
     }
-
-    setFirebaseStatus(status);
-  };
-
-  const getStatusColor = (status) => {
-    if (status === 'connected') return 'green';
-    if (status === 'checking') return 'orange';
-    if (status === 'not initialized') return 'orange';
-    return 'red';
-  };
-
-  const renderDetailRows = () => {
-    const rows = [];
-    
-    for (const [key, value] of Object.entries(firebaseStatus.details)) {
-      rows.push(
-        <tr key={key}>
-          <td style={styles.cell}>{key}</td>
-          <td style={styles.cell}>{value}</td>
-        </tr>
-      );
-    }
-    
-    return rows;
-  };
+  }
 
   return (
-    <div style={styles.container}>
-      <h2 style={styles.title}>Firebase Connection Troubleshooter</h2>
+    <div className="mb-6 bg-gray-50 p-4 rounded-md">
+      <h2 className="text-lg font-semibold mb-2">Firebase Configuration Checker</h2>
       
-      <table style={styles.table}>
-        <tbody>
-          <tr>
-            <td style={styles.cell}>Firebase Initialized</td>
-            <td style={styles.cell}>
-              <span style={{color: firebaseStatus.initialized ? 'green' : 'red'}}>
-                {firebaseStatus.initialized ? '✓' : '✗'}
-              </span>
-            </td>
-          </tr>
-          <tr>
-            <td style={styles.cell}>Config Valid</td>
-            <td style={styles.cell}>
-              <span style={{color: firebaseStatus.configValid ? 'green' : 'red'}}>
-                {firebaseStatus.configValid ? '✓' : '✗'}
-              </span>
-            </td>
-          </tr>
-          <tr>
-            <td style={styles.cell}>Connection Status</td>
-            <td style={styles.cell}>
-              <span style={{color: getStatusColor(firebaseStatus.connection)}}>
-                {firebaseStatus.connection}
-              </span>
-            </td>
-          </tr>
-          <tr>
-            <td style={styles.cell}>Firestore Status</td>
-            <td style={styles.cell}>
-              <span style={{color: getStatusColor(firebaseStatus.firestore)}}>
-                {firebaseStatus.firestore}
-              </span>
-            </td>
-          </tr>
-          <tr>
-            <td style={styles.cell}>Auth Status</td>
-            <td style={styles.cell}>
-              <span style={{color: getStatusColor(firebaseStatus.auth)}}>
-                {firebaseStatus.auth}
-              </span>
-            </td>
-          </tr>
-          {renderDetailRows()}
-        </tbody>
-      </table>
-
-      <div style={styles.buttonContainer}>
-        <button 
-          onClick={checkFirebaseStatus}
-          style={styles.button}
-        >
-          Check Firebase Connection
-        </button>
+      <div className="mb-4">
+        <h3 className="text-md font-medium mb-2">Environment Variables</h3>
+        <div className="grid grid-cols-2 gap-2">
+          {Object.entries(firebaseConfig).map(([key, value]) => (
+            <div key={key} className="flex justify-between">
+              <span className="text-gray-600">{key}:</span>
+              <span className={value.startsWith('✓') ? 'text-green-600' : 'text-red-600'}>{value}</span>
+            </div>
+          ))}
+        </div>
       </div>
-
-      <div style={styles.troubleshootingTips}>
-        <h3 style={styles.subTitle}>Troubleshooting Tips</h3>
-        <ul style={styles.list}>
-          <li>Make sure you have correctly set all Firebase environment variables in your .env.local file</li>
-          <li>Check that your Firebase project's Authentication service has Google sign-in enabled</li>
-          <li>Verify that your Firebase project's Firestore database is created and not in locked mode</li>
-          <li>Ensure your Firebase project's security rules allow the operations you're trying to perform</li>
-          <li>Check your network connection and make sure you're not behind a restrictive firewall</li>
-          <li>Clear browser cache and cookies if you continue experiencing issues</li>
+      
+      <div className="mb-4">
+        <h3 className="text-md font-medium mb-2">Test Firestore Connection</h3>
+        <button 
+          onClick={testFirestore}
+          disabled={loading}
+          className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50"
+        >
+          {loading ? 'Testing...' : 'Run Test'}
+        </button>
+        
+        {testResult && (
+          <div className={`mt-3 p-3 rounded text-sm ${testResult.success ? 'bg-green-50' : 'bg-red-50'}`}>
+            <p className={testResult.success ? 'text-green-800' : 'text-red-800'}>
+              {testResult.message}
+            </p>
+            {testResult.details && (
+              <pre className="mt-2 p-2 bg-white rounded text-xs overflow-auto">
+                {JSON.stringify(testResult.details, null, 2)}
+              </pre>
+            )}
+            {testResult.error && (
+              <pre className="mt-2 p-2 bg-white rounded text-xs overflow-auto">
+                {JSON.stringify(testResult.error, null, 2)}
+              </pre>
+            )}
+          </div>
+        )}
+      </div>
+      
+      <div>
+        <h3 className="text-md font-medium mb-2">Browser Compatibility Check</h3>
+        <ul className="text-sm space-y-1">
+          <li className="flex items-center">
+            <span className={typeof window !== 'undefined' && 'indexedDB' in window ? 'text-green-600' : 'text-red-600'}>
+              {typeof window !== 'undefined' && 'indexedDB' in window ? '✓' : '✗'}
+            </span>
+            <span className="ml-2">IndexedDB Support</span>
+          </li>
+          <li className="flex items-center">
+            <span className={typeof window !== 'undefined' && 'localStorage' in window ? 'text-green-600' : 'text-red-600'}>
+              {typeof window !== 'undefined' && 'localStorage' in window ? '✓' : '✗'}
+            </span>
+            <span className="ml-2">LocalStorage Support</span>
+          </li>
+          <li className="flex items-center">
+            <span className={typeof window !== 'undefined' && navigator.onLine ? 'text-green-600' : 'text-yellow-600'}>
+              {typeof window !== 'undefined' && navigator.onLine ? '✓' : '⚠'}
+            </span>
+            <span className="ml-2">Online Status</span>
+          </li>
         </ul>
       </div>
     </div>
   );
-};
-
-const styles = {
-  container: {
-    maxWidth: '800px',
-    margin: '0 auto',
-    padding: '20px',
-    backgroundColor: '#fff',
-    borderRadius: '8px',
-    boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)',
-  },
-  title: {
-    fontSize: '24px',
-    fontWeight: 'bold',
-    marginBottom: '20px',
-    color: '#333',
-  },
-  subTitle: {
-    fontSize: '18px',
-    fontWeight: 'bold',
-    marginBottom: '10px',
-    marginTop: '20px',
-    color: '#333',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-    marginBottom: '20px',
-  },
-  cell: {
-    padding: '10px',
-    border: '1px solid #ddd',
-    fontSize: '14px',
-  },
-  buttonContainer: {
-    marginTop: '20px',
-    marginBottom: '20px',
-  },
-  button: {
-    backgroundColor: '#5a45f8',
-    color: 'white',
-    border: 'none',
-    padding: '10px 16px',
-    borderRadius: '4px',
-    fontSize: '14px',
-    cursor: 'pointer',
-  },
-  troubleshootingTips: {
-    backgroundColor: '#f8f9fa',
-    padding: '15px',
-    borderRadius: '4px',
-    marginTop: '20px',
-  },
-  list: {
-    paddingLeft: '20px',
-    margin: '10px 0',
-  },
-};
-
-export default FirebaseTroubleshooter;
+}

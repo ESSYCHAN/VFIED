@@ -77,49 +77,79 @@ export function AuthProvider({ children }) {
   }
 
   // Google sign-in function
-  async function signInWithGoogle() {
-    try {
-      console.log("Starting Google sign-in process...");
-      
-      const provider = new GoogleAuthProvider();
-      console.log("Created Google Auth Provider");
-      
-      // Add scopes if needed
-      provider.addScope('profile');
-      provider.addScope('email');
-      
-      console.log("Attempting popup sign-in...");
-      const result = await signInWithPopup(auth, provider);
-      console.log("Google sign-in successful", result.user.uid);
-      
-      // Check if user document exists
-      console.log("Checking if user exists in Firestore...");
-      const userDoc = await getDoc(doc(db, 'users', result.user.uid));
-      
-      if (!userDoc.exists()) {
-        console.log("User doesn't exist, creating document...");
-        await setDoc(doc(db, 'users', result.user.uid), {
-          name: result.user.displayName || '',
-          email: result.user.email,
-          role: 'candidate',
-          createdAt: new Date()
-        });
-        console.log("User document created successfully");
-      } else {
-        console.log("User already exists in Firestore");
-      }
-      
-      return result;
-    } catch (error) {
-      console.error("Detailed Google sign-in error:", {
-        code: error.code,
-        message: error.message,
-        email: error.email,
-        credential: error.credential
+  // Modified signInWithGoogle function for frontend/src/context/AuthContext.js
+async function signInWithGoogle() {
+  try {
+    console.log("Starting Google sign-in process...");
+    
+    // Check for online status first (only in browser)
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      throw new Error('Network connection unavailable. Please check your internet connection and try again.');
+    }
+    
+    const provider = new GoogleAuthProvider();
+    console.log("Created Google Auth Provider");
+    
+    // Add scopes if needed
+    provider.addScope('profile');
+    provider.addScope('email');
+    
+    // Configure persistence to use local storage
+    await setPersistence(auth, browserLocalPersistence);
+    
+    console.log("Attempting popup sign-in...");
+    // Add timeout handling
+    const signInPromise = signInWithPopup(auth, provider);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Sign-in request timed out. Please try again.')), 30000)
+    );
+    
+    const result = await Promise.race([signInPromise, timeoutPromise]);
+    
+    console.log("Google sign-in successful", result.user.uid);
+    
+    // Check if user document exists
+    console.log("Checking if user exists in Firestore...");
+    const userDoc = await getDoc(doc(db, 'users', result.user.uid));
+    
+    if (!userDoc.exists()) {
+      console.log("User doesn't exist, creating document...");
+      await setDoc(doc(db, 'users', result.user.uid), {
+        name: result.user.displayName || '',
+        email: result.user.email,
+        role: 'candidate',
+        createdAt: new Date()
       });
-      throw error;
+      console.log("User document created successfully");
+    } else {
+      console.log("User already exists in Firestore");
+    }
+    
+    return result;
+  } catch (error) {
+    console.error("Detailed Google sign-in error:", {
+      code: error.code,
+      message: error.message,
+      email: error.email,
+      credential: error.credential
+    });
+    
+    // Provide more user-friendly error messages
+    if (error.code === 'auth/network-request-failed') {
+      throw new Error('Network connection failed. Please check your internet connection and try again.');
+    } else if (error.code === 'auth/popup-blocked') {
+      throw new Error('Sign-in popup was blocked by your browser. Please allow popups for this site and try again.');
+    } else if (error.code === 'auth/popup-closed-by-user') {
+      throw new Error('Sign-in was cancelled. Please try again and complete the Google sign-in process.');
+    } else if (error.code === 'auth/cancelled-popup-request') {
+      throw new Error('Another sign-in attempt is in progress. Please wait for it to complete or refresh the page and try again.');
+    } else if (typeof window !== 'undefined' && !navigator.onLine) {
+      throw new Error('You appear to be offline. Please check your internet connection and try again.');
+    } else {
+      throw new Error(`Failed to sign in with Google: ${error.message || 'because the client is offline'}`);
     }
   }
+}
 
   // Logout function
   function logout() {

@@ -1,495 +1,142 @@
-// src/pages/CredentialView.js
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import Layout from '@/components/Layout';
-import { getCredentialById, requestVerification, updateCredential, deleteCredential } from '../services/credentialService';
+// frontend/src/pages/CredentialView.js
+import React from 'react';
+import { useRouter } from 'next/router';
+// Import LinkComponent from NextJS instead of using useNavigate from react-router
+import Link from 'next/link';
+import Head from 'next/head';
 
 const CredentialView = () => {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const [credential, setCredential] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({
-    title: '',
-    description: ''
-  });
-  const [isRequesting, setIsRequesting] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const router = useRouter();
+  // Use Next.js router instead of useNavigate
+  const navigateBack = () => router.back();
 
-  // Styling
-  const styles = {
-    container: {
-      maxWidth: '800px',
-      margin: '0 auto',
-      padding: '20px',
-    },
-    header: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: '20px',
-    },
-    title: {
-      fontSize: '24px',
-      fontWeight: 'bold',
-      color: '#333',
-      margin: 0,
-    },
-    backButton: {
-      padding: '8px 16px',
-      backgroundColor: '#f0f0f0',
-      border: 'none',
-      borderRadius: '4px',
-      cursor: 'pointer',
-      color: '#333',
-      fontSize: '14px',
-    },
-    card: {
-      backgroundColor: '#fff',
-      borderRadius: '8px',
-      boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)',
-      padding: '24px',
-      marginBottom: '20px',
-    },
-    field: {
-      marginBottom: '16px',
-    },
-    label: {
-      display: 'block',
-      fontSize: '14px',
-      color: '#666',
-      marginBottom: '4px',
-    },
-    value: {
-      fontSize: '16px',
-      color: '#333',
-    },
-    imageContainer: {
-      marginTop: '24px',
-      marginBottom: '24px',
-    },
-    image: {
-      maxWidth: '100%',
-      borderRadius: '4px',
-      border: '1px solid #eaeaea',
-    },
-    statusBadge: (status) => {
-      const statusColors = {
-        pending: { bg: '#FFF8E1', text: '#F57C00' },
-        verified: { bg: '#E8F5E9', text: '#388E3C' },
-        rejected: { bg: '#FFEBEE', text: '#D32F2F' },
-        draft: { bg: '#E3F2FD', text: '#1976D2' },
-      };
-      
-      const color = statusColors[status] || statusColors.draft;
-      
-      return {
-        display: 'inline-block',
-        padding: '6px 12px',
-        borderRadius: '16px',
-        fontSize: '14px',
-        fontWeight: 'bold',
-        backgroundColor: color.bg,
-        color: color.text,
-      };
-    },
-    verificationSection: {
-      marginTop: '24px',
-      padding: '16px',
-      backgroundColor: '#f9f9f9',
-      borderRadius: '8px',
-    },
-    actionButtons: {
-      display: 'flex',
-      gap: '12px',
-      marginTop: '20px',
-    },
-    button: {
-      padding: '10px 18px',
-      borderRadius: '4px',
-      border: 'none',
-      fontSize: '14px',
-      cursor: 'pointer',
-      fontWeight: '500',
-    },
-    primaryButton: {
-      backgroundColor: '#4A90E2',
-      color: 'white',
-    },
-    secondaryButton: {
-      backgroundColor: '#f0f0f0',
-      color: '#333',
-    },
-    dangerButton: {
-      backgroundColor: '#F44336',
-      color: 'white',
-    },
-    successButton: {
-      backgroundColor: '#4CAF50',
-      color: 'white',
-    },
-    formGroup: {
-      marginBottom: '16px',
-    },
-    input: {
-      width: '100%',
-      padding: '10px',
-      fontSize: '16px',
-      border: '1px solid #ddd',
-      borderRadius: '4px',
-    },
-    textarea: {
-      width: '100%',
-      padding: '10px',
-      fontSize: '16px',
-      border: '1px solid #ddd',
-      borderRadius: '4px',
-      minHeight: '100px',
-      fontFamily: 'inherit',
-    },
-    loadingContainer: {
-      textAlign: 'center',
-      padding: '40px',
-    },
-    errorContainer: {
-      padding: '20px',
-      backgroundColor: '#FFEBEE',
-      color: '#D32F2F',
-      borderRadius: '4px',
-      marginBottom: '20px',
-    },
-    verificationSteps: {
-      marginTop: '20px',
-    },
-    step: {
-      display: 'flex',
-      marginBottom: '16px',
-    },
-    stepNumber: {
-      width: '24px',
-      height: '24px',
-      borderRadius: '50%',
-      backgroundColor: '#4A90E2',
-      color: 'white',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: '12px',
-      flexShrink: 0,
-    },
-    stepContent: {
-      flex: 1,
-    },
-    stepTitle: {
-      fontWeight: 'bold',
-      marginBottom: '4px',
-    },
-    timeline: {
-      marginTop: '24px',
-    },
-    timelineItem: {
-      display: 'flex',
-      marginBottom: '16px',
-    },
-    timelineDot: {
-      width: '12px',
-      height: '12px',
-      borderRadius: '50%',
-      backgroundColor: '#4A90E2',
-      marginRight: '12px',
-      marginTop: '6px',
-      flexShrink: 0,
-    },
-    timelineContent: {
-      flex: 1,
-    },
-    timelineDate: {
-      fontSize: '12px',
-      color: '#999',
-    },
+  // Get credential ID from router query
+  const { id } = router.query;
+
+  // For now, mock credential data
+  const credential = {
+    id: id || 'credential-id',
+    title: 'Bachelor of Science in Computer Science',
+    issuer: 'University of Example',
+    dateIssued: '2020-06-15',
+    description: 'This certifies that the holder has successfully completed all requirements for the degree of Bachelor of Science in Computer Science.',
+    verificationStatus: 'verified',
+    skills: ['Programming', 'Algorithms', 'Data Structures', 'Software Engineering']
   };
 
-  useEffect(() => {
-    const fetchCredential = async () => {
-      try {
-        setLoading(true);
-        const data = await getCredentialById(id);
-        setCredential(data);
-        setFormData({
-          title: data.title,
-          description: data.description || '',
-        });
-      } catch (err) {
-        setError('Failed to load credential. Please try again.');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Head>
+        <title>{credential.title} - VFied</title>
+      </Head>
 
-    fetchCredential();
-  }, [id]);
-
-  const handleEdit = () => {
-    setIsEditing(true);
-  };
-
-  const handleCancel = () => {
-    setIsEditing(false);
-    // Reset form data to original values
-    setFormData({
-      title: credential.title,
-      description: credential.description || '',
-    });
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
-  };
-
-  const handleSave = async () => {
-    try {
-      setIsSaving(true);
-      const updatedCredential = await updateCredential(id, formData);
-      setCredential(updatedCredential);
-      setIsEditing(false);
-    } catch (err) {
-      alert('Failed to update credential. Please try again.');
-      console.error(err);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleRequestVerification = async () => {
-    try {
-      setIsRequesting(true);
-      const updatedCredential = await requestVerification(id);
-      setCredential(updatedCredential);
-    } catch (err) {
-      alert('Failed to request verification. Please try again.');
-      console.error(err);
-    } finally {
-      setIsRequesting(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (window.confirm('Are you sure you want to delete this credential? This action cannot be undone.')) {
-      try {
-        setIsDeleting(true);
-        await deleteCredential(id);
-        navigate('/dashboard');
-      } catch (err) {
-        alert('Failed to delete credential. Please try again.');
-        console.error(err);
-      } finally {
-        setIsDeleting(false);
-      }
-    }
-  };
-
-  const formatDate = (dateString) => {
-    const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-    return new Date(dateString).toLocaleDateString(undefined, options);
-  };
-
-  if (loading) {
-    return (
-      <Layout>
-        <div style={styles.loadingContainer}>
-          <p>Loading credential information...</p>
-        </div>
-      </Layout>
-    );
-  }
-
-  if (error) {
-    return (
-      <Layout>
-        <div style={styles.container}>
-          <div style={styles.errorContainer}>
-            <p>{error}</p>
-            <button 
-              onClick={() => navigate('/dashboard')}
-              style={{ ...styles.button, ...styles.secondaryButton }}
+      <header className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-bold text-gray-900">Credential Details</h1>
+            <button
+              onClick={navigateBack}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
             >
-              Back to Dashboard
+              Back
             </button>
           </div>
         </div>
-      </Layout>
-    );
-  }
+      </header>
 
-  return (
-    <Layout>
-      <div style={styles.container}>
-        <div style={styles.header}>
-          <button 
-            onClick={() => navigate('/dashboard')}
-            style={styles.backButton}
-          >
-            ← Back to Dashboard
-          </button>
-          <span style={styles.statusBadge(credential.status)}>
-            {credential.status.charAt(0).toUpperCase() + credential.status.slice(1)}
-          </span>
-        </div>
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+          <div className="px-4 py-5 sm:p-6">
+            <div className="flex justify-between items-start">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">{credential.title}</h2>
+                <p className="mt-1 text-sm text-gray-500">Issued by {credential.issuer} on {new Date(credential.dateIssued).toLocaleDateString()}</p>
+              </div>
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                ${credential.verificationStatus === 'verified' ? 'bg-green-100 text-green-800' : 
+                credential.verificationStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
+                credential.verificationStatus === 'rejected' ? 'bg-red-100 text-red-800' : 
+                'bg-gray-100 text-gray-800'}`}
+              >
+                {credential.verificationStatus}
+              </span>
+            </div>
 
-        {isEditing ? (
-          <div style={styles.card}>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Title</label>
-              <input
-                type="text"
-                name="title"
-                value={formData.title}
-                onChange={handleInputChange}
-                style={styles.input}
-              />
+            <div className="mt-6">
+              <h3 className="text-lg font-medium text-gray-900">Description</h3>
+              <p className="mt-2 text-sm text-gray-500">{credential.description}</p>
             </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Description</label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                style={styles.textarea}
-              />
-            </div>
-            <div style={styles.actionButtons}>
-              <button 
-                onClick={handleSave}
-                style={{ ...styles.button, ...styles.primaryButton }}
-                disabled={isSaving}
-              >
-                {isSaving ? 'Saving...' : 'Save Changes'}
-              </button>
-              <button 
-                onClick={handleCancel}
-                style={{ ...styles.button, ...styles.secondaryButton }}
-                disabled={isSaving}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div style={styles.card}>
-            <h1 style={styles.title}>{credential.title}</h1>
-            
-            <div style={styles.field}>
-              <label style={styles.label}>Type</label>
-              <div style={styles.value}>{credential.type}</div>
-            </div>
-            
-            {credential.description && (
-              <div style={styles.field}>
-                <label style={styles.label}>Description</label>
-                <div style={styles.value}>{credential.description}</div>
+
+            {credential.skills && credential.skills.length > 0 && (
+              <div className="mt-6">
+                <h3 className="text-lg font-medium text-gray-900">Skills</h3>
+                <div className="mt-2 flex flex-wrap">
+                  {credential.skills.map((skill, index) => (
+                    <span key={index} className="mr-2 mb-2 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
+                      {skill}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
-            
-            <div style={styles.field}>
-              <label style={styles.label}>Uploaded on</label>
-              <div style={styles.value}>{formatDate(credential.createdAt)}</div>
-            </div>
-            
-            {credential.imageUrl && (
-              <div style={styles.imageContainer}>
-                <img 
-                  src={credential.imageUrl} 
-                  alt={credential.title}
-                  style={styles.image}
-                />
-              </div>
-            )}
-            
-            <div style={styles.actionButtons}>
-              <button 
-                onClick={handleEdit}
-                style={{ ...styles.button, ...styles.secondaryButton }}
-              >
-                Edit
-              </button>
-              
-              {credential.status === 'draft' && (
-                <button 
-                  onClick={handleRequestVerification}
-                  style={{ ...styles.button, ...styles.successButton }}
-                  disabled={isRequesting}
-                >
-                  {isRequesting ? 'Requesting...' : 'Request Verification'}
-                </button>
-              )}
-              
-              <button 
-                onClick={handleDelete}
-                style={{ ...styles.button, ...styles.dangerButton }}
-                disabled={isDeleting}
-              >
-                {isDeleting ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        )}
-        
-        {credential.status !== 'draft' && (
-          <div style={styles.verificationSection}>
-            <h3>Verification Process</h3>
-            
-            <div style={styles.verificationSteps}>
-              <div style={styles.step}>
-                <div style={styles.stepNumber}>1</div>
-                <div style={styles.stepContent}>
-                  <div style={styles.stepTitle}>Submission</div>
-                  <p>Your credential has been submitted for verification.</p>
-                </div>
-              </div>
-              
-              <div style={styles.step}>
-                <div style={styles.stepNumber}>2</div>
-                <div style={styles.stepContent}>
-                  <div style={styles.stepTitle}>Review</div>
-                  <p>Our verification team will review your credential within 24-48 hours.</p>
-                </div>
-              </div>
-              
-              <div style={styles.step}>
-                <div style={styles.stepNumber}>3</div>
-                <div style={styles.stepContent}>
-                  <div style={styles.stepTitle}>Verification</div>
-                  <p>Once verified, your credential will be added to your verified collection.</p>
-                </div>
-              </div>
-            </div>
-            
-            <div style={styles.timeline}>
-              <h4>Status Timeline</h4>
-              
-              {credential.statusHistory && credential.statusHistory.map((status, index) => (
-                <div key={index} style={styles.timelineItem}>
-                  <div style={styles.timelineDot}></div>
-                  <div style={styles.timelineContent}>
-                    <div>{status.status.charAt(0).toUpperCase() + status.status.slice(1)}</div>
-                    <div style={styles.timelineDate}>{formatDate(status.timestamp)}</div>
-                    {status.note && <div>{status.note}</div>}
+
+            <div className="mt-8 border-t border-gray-200 pt-6">
+              <h3 className="text-lg font-medium text-gray-900">Verification Details</h3>
+              <div className="mt-2">
+                {credential.verificationStatus === 'verified' ? (
+                  <div className="bg-green-50 p-4 rounded-md">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm text-green-800">This credential has been verified by VFied on {new Date().toLocaleDateString()}</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ) : credential.verificationStatus === 'pending' ? (
+                  <div className="bg-yellow-50 p-4 rounded-md">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm text-yellow-800">This credential is currently under review. You will be notified once verification is complete.</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 p-4 rounded-md">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm text-gray-800">This credential has not been submitted for verification.</p>
+                        <div className="mt-2">
+                          <Link
+                            href={`/verify-credential/${credential.id}`}
+                            className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+                          >
+                            Submit for Verification
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        )}
-      </div>
-    </Layout>
+        </div>
+      </main>
+    </div>
   );
 };
 

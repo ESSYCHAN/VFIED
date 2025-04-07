@@ -1,11 +1,9 @@
+// pages/api/stripe/webhook.js
 import Stripe from 'stripe';
-import { getFirestore } from 'firebase/firestore';
-import { initializeApp } from 'firebase/app';
-import { firebaseConfig } from '../../../lib/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../../../lib/firebase';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
 
 export const config = {
   api: {
@@ -46,19 +44,27 @@ export default async function handler(req, res) {
         const session = event.data.object;
         
         // Update Firestore when payment succeeds
-        await updateDoc(doc(db, 'requisitions', session.client_reference_id), {
-          'payment.status': 'paid',
-          'payment.paidAt': new Date(),
-          'payment.receiptUrl': session.receipt_url,
-          status: 'active'
-        });
+        try {
+          await updateDoc(doc(db, 'requisitions', session.client_reference_id), {
+            'payment.status': 'paid',
+            'payment.paidAt': new Date(),
+            'payment.receiptUrl': session.receipt_url,
+            status: 'active'
+          });
+        } catch (error) {
+          console.error('Error updating document:', error);
+        }
         break;
 
       case 'checkout.session.expired':
         const expiredSession = event.data.object;
-        await updateDoc(doc(db, 'requisitions', expiredSession.client_reference_id), {
-          'payment.status': 'expired'
-        });
+        try {
+          await updateDoc(doc(db, 'requisitions', expiredSession.client_reference_id), {
+            'payment.status': 'expired'
+          });
+        } catch (error) {
+          console.error('Error updating document:', error);
+        }
         break;
 
       default:

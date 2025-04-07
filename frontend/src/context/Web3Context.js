@@ -22,10 +22,17 @@ export function Web3Provider({ children }) {
 
   // Initialize Web3
   useEffect(() => {
+    // Only run in browser environment
+    if (typeof window === 'undefined') {
+      setLoading(false);
+      return;
+    }
+    
     const init = async () => {
       try {
         // Check if window.ethereum is available
         if (window.ethereum) {
+          // Use ethers v6 syntax
           const provider = new ethers.BrowserProvider(window.ethereum);
           setProvider(provider);
           
@@ -80,6 +87,8 @@ export function Web3Provider({ children }) {
 
   // Connect wallet
   const connectWallet = async () => {
+    if (typeof window === 'undefined') return;
+    
     try {
       if (window.ethereum) {
         setLoading(true);
