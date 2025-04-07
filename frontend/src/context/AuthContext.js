@@ -6,9 +6,13 @@ import {
   signInWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithPopup,
-  signOut
+  signOut,
+  updateProfile,
+  setPersistence,
+  browserLocalPersistence
 } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
 
 // Create the context with a default value
 const AuthContext = createContext(null);
@@ -26,58 +30,140 @@ export function AuthProvider({ children }) {
   const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  function signup(email, password) {
-    return createUserWithEmailAndPassword(auth, email, password);
+  // Enable persistence
+  useEffect(() => {
+    setPersistence(auth, browserLocalPersistence)
+      .then(() => {
+        console.log("Persistence enabled");
+      })
+      .catch((error) => {
+        console.error("Error enabling persistence:", error);
+      });
+  }, []);
+
+  // Sign up function
+  async function signup(email, password, displayName, role = 'candidate') {
+    // Add a timeout promise
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Signup request timed out')), 10000)
+    );
+    
+    try {
+      // Race against the timeout
+      await Promise.race([
+        createUserWithEmailAndPassword(auth, email, password),
+        timeoutPromise
+      ]);
+      // Rest of signup code
+    } catch (error) {
+      console.error("Error during signup:", error);
+      throw error;
+    }
+  }
+  
+
+  // Login function with error handling
+  async function login(email, password) {
+    try {
+      return await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      console.error("Login error:", error.code, error.message);
+      // Check if the error is related to connectivity
+      if (error.code === 'auth/network-request-failed') {
+        throw new Error('Network connection failed. Please check your internet connection and try again.');
+      }
+      throw error;
+    }
   }
 
-  function login(email, password) {
-    return signInWithEmailAndPassword(auth, email, password);
+  // Google sign-in function
+  async function signInWithGoogle() {
+    try {
+      console.log("Starting Google sign-in process...");
+      
+      const provider = new GoogleAuthProvider();
+      console.log("Created Google Auth Provider");
+      
+      // Add scopes if needed
+      provider.addScope('profile');
+      provider.addScope('email');
+      
+      console.log("Attempting popup sign-in...");
+      const result = await signInWithPopup(auth, provider);
+      console.log("Google sign-in successful", result.user.uid);
+      
+      // Check if user document exists
+      console.log("Checking if user exists in Firestore...");
+      const userDoc = await getDoc(doc(db, 'users', result.user.uid));
+      
+      if (!userDoc.exists()) {
+        console.log("User doesn't exist, creating document...");
+        await setDoc(doc(db, 'users', result.user.uid), {
+          name: result.user.displayName || '',
+          email: result.user.email,
+          role: 'candidate',
+          createdAt: new Date()
+        });
+        console.log("User document created successfully");
+      } else {
+        console.log("User already exists in Firestore");
+      }
+      
+      return result;
+    } catch (error) {
+      console.error("Detailed Google sign-in error:", {
+        code: error.code,
+        message: error.message,
+        email: error.email,
+        credential: error.credential
+      });
+      throw error;
+    }
   }
 
-  function signInWithGoogle() {
-    const provider = new GoogleAuthProvider();
-    return signInWithPopup(auth, provider);
-  }
-
+  // Logout function
   function logout() {
     return signOut(auth);
   }
 
-// In your AuthProvider useEffect
-useEffect(() => {
-  const unsubscribe = onAuthStateChanged(auth, async (user) => {
-    setCurrentUser(user);
-    
-    if (user) {
-      try {
-        // First try to get role from custom claims
-        const tokenResult = await user.getIdTokenResult();
-        let role = tokenResult.claims?.role;
-        
-        // If no role in claims, try to get it from Firestore
-        if (!role) {
+  // Listen for auth state changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setCurrentUser(user);
+      
+      if (user) {
+        try {
+          // Get user's role from Firestore
           const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists() && userDoc.data().role) {
-            role = userDoc.data().role;
-            console.log('Found role in Firestore:', role);
+          
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            setUserRole(userData.role || 'candidate');
+          } else {
+            // Create user document if it doesn't exist
+            await setDoc(doc(db, 'users', user.uid), {
+              name: user.displayName || '',
+              email: user.email,
+              role: 'candidate',
+              createdAt: new Date()
+            });
+            setUserRole('candidate');
           }
+        } catch (error) {
+          console.error("Error getting user role:", error);
+          setUserRole('candidate'); // Default fallback
         }
-        
-        setUserRole(role || 'user');
-      } catch (error) {
-        console.error("Error getting user role:", error);
-        setUserRole('user');
+      } else {
+        setUserRole(null);
       }
-    } else {
-      setUserRole(null);
-    }
+      
+      setLoading(false);
+    });
     
-    setLoading(false);
-  });
-  
-  return unsubscribe;
-}, []);
+    return unsubscribe;
+  }, []);
 
+  // Context value
   const value = {
     currentUser,
     userRole,

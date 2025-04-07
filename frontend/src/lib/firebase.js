@@ -1,9 +1,8 @@
 
 // src/firebase/config.js
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
-import { setPersistence, browserSessionPersistence } from "firebase/auth";
+import { getFirestore } from 'firebase/firestore';
 
 // Your Firebase configuration
 const firebaseConfig = {
@@ -12,27 +11,24 @@ const firebaseConfig = {
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
   
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig, 'VFiedApp');
 const db = getFirestore(app);
 const auth = getAuth(app);
 
 export { db, auth};
 
-// After initializing auth
-setPersistence(auth, browserSessionPersistence)
-  .then(() => {
-    // Session persistence will clear when the tab is closed
-    console.log("Set auth persistence to session");
-  })
-  .catch((error) => {
-    console.error("Error setting persistence:", error);
-  });
+
+
+if (process.env.NODE_ENV === 'development') {
+  // Uncomment if using emulators
+  // connectAuthEmulator(auth, 'http://localhost:9099');
+  // connectFirestoreEmulator(db, 'localhost', 8080);
+}
 
 // Helper functions
 export const isFirebaseConfigured = () => !!firebaseConfig.apiKey;
