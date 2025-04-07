@@ -1,68 +1,137 @@
+// src/pages/employer/dashboard.js
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements, CardElement } from '@stripe/react-stripe-js';
-import PaymentHistory from '@/components/employer/PaymentHistory'; // New
-import RevenueChart from '@/components/employer/RevenueChart'; // New
-
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_KEY);
+import { db } from '../../lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
 
 export default function EmployerDashboard() {
+  const router = useRouter();
   const { currentUser } = useAuth();
   const [requisitions, setRequisitions] = useState([]);
-  const [paymentIntent, setPaymentIntent] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Fetch employer's requisitions
   useEffect(() => {
-    const unsubscribe = db.collection('requisitions')
-      .where('recruiter', '==', currentUser.uid)
-      .onSnapshot(snap => {
-        setRequisitions(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      });
-    return unsubscribe;
+    if (currentUser) {
+      const fetchRequisitions = async () => {
+        try {
+          const q = query(
+            collection(db, 'requisitions'),
+            where('employerId', '==', currentUser.uid)
+          );
+          const querySnapshot = await getDocs(q);
+          const requisitionList = [];
+          
+          querySnapshot.forEach((doc) => {
+            requisitionList.push({
+              id: doc.id,
+              ...doc.data()
+            });
+          });
+          
+          setRequisitions(requisitionList);
+        } catch (error) {
+          console.error("Error fetching requisitions:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      fetchRequisitions();
+    }
   }, [currentUser]);
 
-  // Create payment intent
-  const createPayment = async (reqId) => {
-    const response = await fetch('/api/stripe/create-intent', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        requisitionId: reqId,
-        amount: 5000 // $50.00 in cents
-      })
-    });
-    setPaymentIntent(await response.json());
-  };
-
   return (
-    <div className="dashboard-container">
-      <h1>Job Requisitions</h1>
-      <div className="requisition-grid">
-        {requisitions.map(req => (
-          <div key={req.id} className="requisition-card">
-            <h3>{req.title}</h3>
-            <p>Status: {req.status}</p>
-            {!req.paid && (
-              <button onClick={() => createPayment(req.id)}>
-                Pay to Publish
-              </button>
-            )}
-            {paymentIntent?.requisitionId === req.id && (
-              <Elements stripe={stripePromise}>
-                <PaymentForm intent={paymentIntent} />
-              </Elements>
-            )}
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex justify-between items-center">
+            <h1 className="text-3xl font-bold text-gray-900">Employer Dashboard</h1>
+            <div>
+              <Link 
+                href="/requisitions/new" 
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+              >
+                + New Job Requisition
+              </Link>
+            </div>
           </div>
-        ))}
-      </div>
-      {/* New Monetization Section */}
-      <section className="monetization-section">
-        <h2 className="section-title">Billing & Analytics</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <PaymentHistory userId={currentUser.uid} />
-          <RevenueChart userId={currentUser.uid} />
         </div>
-      </section>
+      </header>
+      
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 sm:px-0">
+          <h2 className="text-lg font-medium text-gray-900">Your Job Requisitions</h2>
+          <p className="mt-1 text-sm text-gray-600">
+            Manage your job requisitions and view candidates.
+          </p>
+        </div>
+        
+        {loading ? (
+          <div className="mt-6 flex justify-center">
+            <div className="animate-spin h-10 w-10 border-4 border-indigo-500 border-t-transparent rounded-full"></div>
+          </div>
+        ) : requisitions.length === 0 ? (
+          <div className="mt-6 bg-white shadow overflow-hidden sm:rounded-lg">
+            <div className="px-4 py-5 sm:p-6 text-center">
+              <h3 className="text-lg leading-6 font-medium text-gray-900">No requisitions found</h3>
+              <div className="mt-2 max-w-xl text-sm text-gray-500 mx-auto">
+                <p>Get started by creating your first job requisition.</p>
+              </div>
+              <div className="mt-5">
+                <Link 
+                  href="/requisitions/new" 
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+                >
+                  Create Job Requisition
+                </Link>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-6 bg-white shadow overflow-hidden sm:rounded-lg">
+            <ul className="divide-y divide-gray-200">
+              {requisitions.map((req) => (
+                <li key={req.id}>
+                  <div className="px-4 py-4 sm:px-6">
+                    <div className="flex items-center justify-between">
+                      <Link 
+                        href={`/requisitions/${req.id}`}
+                        className="text-indigo-600 hover:text-indigo-900 font-medium"
+                      >
+                        {req.title}
+                      </Link>
+                      <div className="ml-2 flex-shrink-0 flex">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          req.status === 'active' ? 'bg-green-100 text-green-800' : 
+                          req.status === 'draft' ? 'bg-gray-100 text-gray-800' : 
+                          req.status === 'closed' ? 'bg-red-100 text-red-800' : 
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {req.status || 'Draft'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mt-2 sm:flex sm:justify-between">
+                      <div className="sm:flex">
+                        <p className="flex items-center text-sm text-gray-500">
+                          {req.location || 'No location specified'}
+                        </p>
+                      </div>
+                      <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
+                        <p>
+                          Posted: {req.createdAt ? new Date(req.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </main>
     </div>
   );
 }

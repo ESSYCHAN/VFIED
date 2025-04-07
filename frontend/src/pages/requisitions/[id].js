@@ -1,383 +1,58 @@
 // src/pages/requisitions/[id].js
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import Link from 'next/link';
-import Layout from '@/components/Layout';
-import CandidateList from '@/components/recruiter/CandidateList';
-import JobRequisitionForm from '@/components/recruiter/JobRequisitionForm';
-import SkillsAssessmentResult from '@/components/recruiter/SkillsAssessmentResult';
-import { getRequisitionById, updateRequisition, deleteRequisition, changeRequisitionStatus } from '../../services/recruiter/requisitionService';
 import { useAuth } from '../../context/AuthContext';
+import { db } from '../../lib/firebase';
+import { doc, getDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import Link from 'next/link';
 
-// Status colors
-const statusColors = {
-  active: { bg: '#dcfce7', text: '#15803d' },  // Green
-  draft: { bg: '#f3f4f6', text: '#6b7280' },   // Gray
-  expired: { bg: '#fee2e2', text: '#b91c1c' }, // Red
-  filled: { bg: '#dbeafe', text: '#1d4ed8' },  // Blue
-  closed: { bg: '#fef3c7', text: '#b45309' }   // Amber
-};
-
-// Styles for the component
-const styles = {
-  container: {
-    padding: '24px',
-    maxWidth: '1200px',
-    margin: '0 auto',
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: '24px',
-  },
-  title: {
-    fontSize: '28px',
-    fontWeight: 'bold',
-    marginBottom: '8px',
-  },
-  subheader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-  },
-  company: {
-    fontSize: '16px',
-    color: '#1f2937',
-  },
-  location: {
-    fontSize: '16px',
-    color: '#6b7280',
-  },
-  actions: {
-    display: 'flex',
-    gap: '8px',
-  },
-  editButton: {
-    backgroundColor: '#f3f4f6',
-    color: '#1f2937',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '8px 16px',
-    fontWeight: '500',
-    cursor: 'pointer',
-  },
-  activateButton: {
-    backgroundColor: '#15803d',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '8px 16px',
-    fontWeight: '500',
-    cursor: 'pointer',
-  },
-  closeButton: {
-    backgroundColor: '#fef3c7',
-    color: '#b45309',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '8px 16px',
-    fontWeight: '500',
-    cursor: 'pointer',
-  },
-  deleteButton: {
-    backgroundColor: '#fee2e2',
-    color: '#b91c1c',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '8px 16px',
-    fontWeight: '500',
-    cursor: 'pointer',
-  },
-  backButton: {
-    backgroundColor: '#5a45f8',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '10px 16px',
-    fontWeight: '500',
-    cursor: 'pointer',
-    marginTop: '16px',
-  },
-  tabs: {
-    display: 'flex',
-    borderBottom: '1px solid #e5e7eb',
-    marginBottom: '24px',
-  },
-  tab: {
-    padding: '12px 24px',
-    fontSize: '16px',
-    fontWeight: '500',
-    color: '#6b7280',
-    background: 'none',
-    border: 'none',
-    borderBottom: '2px solid transparent',
-    cursor: 'pointer',
-  },
-  activeTab: {
-    color: '#5a45f8',
-    borderBottom: '2px solid #5a45f8',
-  },
-  tabContent: {
-    minHeight: '400px',
-  },
-  section: {
-    marginBottom: '32px',
-    backgroundColor: 'white',
-    borderRadius: '8px',
-    padding: '24px',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-  },
-  sectionTitle: {
-    fontSize: '20px',
-    fontWeight: '600',
-    marginBottom: '16px',
-    color: '#1f2937',
-  },
-  detailGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-    gap: '24px',
-  },
-  detailItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-  },
-  detailLabel: {
-    fontSize: '14px',
-    color: '#6b7280',
-    fontWeight: '500',
-  },
-  detailValue: {
-    fontSize: '16px',
-    color: '#1f2937',
-  },
-  description: {
-    fontSize: '16px',
-    lineHeight: '1.6',
-    color: '#1f2937',
-    whiteSpace: 'pre-wrap',
-  },
-  skillsContainer: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '8px',
-  },
-  tag: {
-    display: 'inline-block',
-    padding: '4px 8px',
-    backgroundColor: '#f3f4f6',
-    color: '#1f2937',
-    borderRadius: '4px',
-    fontSize: '14px',
-  },
-  skillsList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-  },
-  skillItem: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    padding: '12px',
-    backgroundColor: '#f3f4f6',
-    borderRadius: '4px',
-    alignItems: 'center',
-  },
-  skillName: {
-    fontWeight: '500',
-    color: '#1f2937',
-  },
-  skillDetails: {
-    display: 'flex',
-    gap: '16px',
-    color: '#6b7280',
-    fontSize: '14px',
-  },
-  skillImportance: {
-    fontWeight: '500',
-  },
-  educationList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px',
-  },
-  educationItem: {
-    padding: '12px',
-    backgroundColor: '#f3f4f6',
-    borderRadius: '4px',
-  },
-  educationDegree: {
-    fontWeight: '500',
-    color: '#1f2937',
-    marginBottom: '4px',
-  },
-  educationField: {
-    color: '#6b7280',
-    fontSize: '14px',
-    marginBottom: '4px',
-  },
-  educationRequired: {
-    color: '#5a45f8',
-    fontSize: '14px',
-    fontWeight: '500',
-  },
-  verificationList: {
-    listStyle: 'none',
-    padding: 0,
-    margin: 0,
-  },
-  verificationItem: {
-    marginBottom: '8px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  link: {
-    color: '#5a45f8',
-    textDecoration: 'none',
-  },
-  questionsList: {
-    paddingLeft: '24px',
-    margin: '12px 0',
-  },
-  questionItem: {
-    marginBottom: '8px',
-  },
-  emptyMessage: {
-    color: '#6b7280',
-    fontSize: '16px',
-  },
-  candidatesHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '24px',
-  },
-  matchInfo: {
-    color: '#6b7280',
-    fontSize: '14px',
-  },
-  infoMessage: {
-    backgroundColor: '#dbeafe',
-    color: '#1d4ed8',
-    padding: '16px',
-    borderRadius: '8px',
-    fontSize: '16px',
-    marginBottom: '24px',
-  },
-  comingSoonContainer: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: '400px',
-  },
-  comingSoon: {
-    textAlign: 'center',
-    maxWidth: '500px',
-  },
-  comingSoonTitle: {
-    fontSize: '24px',
-    fontWeight: 'bold',
-    marginBottom: '16px',
-    color: '#5a45f8',
-  },
-  comingSoonText: {
-    fontSize: '16px',
-    color: '#6b7280',
-  },
-  modalBackdrop: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    borderRadius: '8px',
-    padding: '24px',
-    width: '100%',
-    maxWidth: '500px',
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-  },
-  modalTitle: {
-    fontSize: '20px',
-    fontWeight: 'bold',
-    marginBottom: '16px',
-  },
-  modalText: {
-    fontSize: '16px',
-    marginBottom: '24px',
-    color: '#4b5563',
-  },
-  modalActions: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: '12px',
-  },
-  cancelButton: {
-    backgroundColor: '#f3f4f6',
-    color: '#4b5563',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '10px 16px',
-    fontWeight: '500',
-    cursor: 'pointer',
-  },
-  loading: {
-    textAlign: 'center',
-    padding: '40px 0',
-    color: '#6b7280',
-    fontSize: '16px',
-  },
-  error: {
-    textAlign: 'center',
-    padding: '40px 0',
-    color: '#ef4444',
-    fontSize: '16px',
-  },
-};
-
-const JobRequisitionDetail = () => {
+export default function RequisitionDetail() {
   const router = useRouter();
   const { id } = router.query;
   const { currentUser } = useAuth();
-  
   const [requisition, setRequisition] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('details');
-  const [editMode, setEditMode] = useState(false);
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
-  const [selectedAssessment, setSelectedAssessment] = useState(null);
+  const [error, setError] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
-    // Set the active tab from URL query parameter if available
-    if (router.query.tab) {
-      setActiveTab(router.query.tab);
-    }
-  }, [router.query.tab]);
-
-  useEffect(() => {
-    if (!id) return;
+    if (!id || !currentUser) return;
 
     const fetchRequisition = async () => {
       try {
-        setLoading(true);
-        const data = await getRequisitionById(id);
-        if (!data) {
+        const docRef = doc(db, 'requisitions', id);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          
+          // Ensure this requisition belongs to the current user
+          if (data.employerId !== currentUser.uid) {
+            setError('You do not have permission to view this requisition');
+            return;
+          }
+          
+          setRequisition({
+            id: docSnap.id,
+            ...data
+          });
+          
+          // Initialize form data for editing
+          setFormData({
+            title: data.title || '',
+            description: data.description || '',
+            location: data.location || '',
+            requiredSkills: data.requiredSkills ? data.requiredSkills.join(', ') : '',
+            minSalary: data.salary?.min || '',
+            maxSalary: data.salary?.max || '',
+            type: data.type || 'full-time'
+          });
+        } else {
           setError('Requisition not found');
-          return;
         }
-        setRequisition(data);
       } catch (err) {
         console.error('Error fetching requisition:', err);
         setError('Failed to load requisition details');
@@ -387,678 +62,536 @@ const JobRequisitionDetail = () => {
     };
 
     fetchRequisition();
-  }, [id]);
+  }, [id, currentUser]);
 
-  const handleUpdateRequisition = async (formData) => {
-    try {
-      await updateRequisition(id, formData);
-      setRequisition({ ...requisition, ...formData });
-      setEditMode(false);
-      showNotification('Requisition updated successfully', 'success');
-    } catch (err) {
-      console.error('Error updating requisition:', err);
-      showNotification('Failed to update requisition', 'error');
-      throw err;
-    }
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value
+    });
   };
 
-  const handleDeleteRequisition = async () => {
-    try {
-      await deleteRequisition(id);
-      showNotification('Requisition deleted successfully', 'success');
-      router.push('/requisitions');
-    } catch (err) {
-      console.error('Error deleting requisition:', err);
-      showNotification('Failed to delete requisition', 'error');
-    }
-    setDeleteModalOpen(false);
-  };
-
-  const handleActivateRequisition = async () => {
-    try {
-      await changeRequisitionStatus(id, 'active');
-      setRequisition({ ...requisition, status: 'active' });
-      showNotification('Requisition activated successfully', 'success');
-    } catch (err) {
-      console.error('Error activating requisition:', err);
-      showNotification('Failed to activate requisition', 'error');
-    }
-  };
-
-  const handleCloseRequisition = async () => {
-    try {
-      await changeRequisitionStatus(id, 'closed');
-      setRequisition({ ...requisition, status: 'closed' });
-      showNotification('Requisition closed successfully', 'success');
-    } catch (err) {
-      console.error('Error closing requisition:', err);
-      showNotification('Failed to close requisition', 'error');
-    }
-  };
-
-  const showNotification = (message, type) => {
-    setNotification({ show: true, message, type });
-    setTimeout(() => {
-      setNotification({ show: false, message: '', type: 'success' });
-    }, 5000);
-  };
-
-  const getStatusBadge = (status) => {
-    const colorScheme = statusColors[status] || statusColors.draft;
+  const handleUpdate = async (e) => {
+    e.preventDefault();
     
-    return (
-      <span style={{
-        display: 'inline-block',
-        padding: '4px 8px',
-        borderRadius: '4px',
-        backgroundColor: colorScheme.bg,
-        color: colorScheme.text,
-        fontSize: '12px',
-        fontWeight: '500',
-        textTransform: 'capitalize'
-      }}>
-        {status}
-      </span>
-    );
+    if (!currentUser) {
+      setError('You must be logged in to update a requisition');
+      return;
+    }
+    
+    setSaving(true);
+    setError('');
+    
+    try {
+      // Format skills as an array
+      const skills = formData.requiredSkills
+        .split(',')
+        .map(skill => skill.trim())
+        .filter(skill => skill);
+      
+      // Update requisition document
+      const reqRef = doc(db, 'requisitions', id);
+      const updateData = {
+        title: formData.title,
+        description: formData.description,
+        location: formData.location,
+        requiredSkills: skills,
+        salary: {
+          min: formData.minSalary ? parseInt(formData.minSalary) : null,
+          max: formData.maxSalary ? parseInt(formData.maxSalary) : null,
+          currency: 'USD'
+        },
+        type: formData.type,
+        updatedAt: serverTimestamp()
+      };
+      
+      await updateDoc(reqRef, updateData);
+      
+      // Update the local state
+      setRequisition({
+        ...requisition,
+        ...updateData
+      });
+      
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error updating requisition:', error);
+      setError('Failed to update requisition: ' + error.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  // If in edit mode, show the form
-  if (editMode && requisition) {
-    return (
-      <Layout>
-        <div style={styles.container}>
-          <h1 style={styles.title}>Edit Job Requisition</h1>
-          <JobRequisitionForm 
-            requisition={requisition}
-            onSubmit={handleUpdateRequisition}
-            onCancel={() => setEditMode(false)}
-          />
-        </div>
-      </Layout>
-    );
-  }
-
-  // Show delete confirmation modal
-  const renderDeleteModal = () => {
-    if (!deleteModalOpen) return null;
-
-    return (
-      <div style={styles.modalBackdrop}>
-        <div style={styles.modalContent}>
-          <h3 style={styles.modalTitle}>Confirm Delete</h3>
-          <p style={styles.modalText}>
-            Are you sure you want to delete this job requisition? This action cannot be undone.
-          </p>
-          <div style={styles.modalActions}>
-            <button 
-              style={styles.cancelButton}
-              onClick={() => setDeleteModalOpen(false)}
-            >
-              Cancel
-            </button>
-            <button 
-              style={styles.deleteButton}
-              onClick={handleDeleteRequisition}
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+  const handleDelete = async () => {
+    try {
+      await deleteDoc(doc(db, 'requisitions', id));
+      router.push('/requisitions');
+    } catch (error) {
+      console.error('Error deleting requisition:', error);
+      setError('Failed to delete requisition: ' + error.message);
+    } finally {
+      setShowDeleteModal(false);
+    }
   };
 
-  // Show notification
-  const renderNotification = () => {
-    if (!notification.show) return null;
-
-    const bgColor = notification.type === 'success' ? '#dcfce7' : '#fee2e2';
-    const textColor = notification.type === 'success' ? '#15803d' : '#b91c1c';
-
-    return (
-      <div style={{
-        position: 'fixed',
-        bottom: '20px',
-        right: '20px',
-        backgroundColor: bgColor,
-        color: textColor,
-        padding: '12px 16px',
-        borderRadius: '4px',
-        boxShadow: '0 2px 5px rgba(0, 0, 0, 0.1)',
-        zIndex: 1000
-      }}>
-        {notification.message}
-      </div>
-    );
+  const handleStatusChange = async (newStatus) => {
+    try {
+      const reqRef = doc(db, 'requisitions', id);
+      await updateDoc(reqRef, {
+        status: newStatus,
+        updatedAt: serverTimestamp()
+      });
+      
+      setRequisition({
+        ...requisition,
+        status: newStatus
+      });
+    } catch (error) {
+      console.error(`Error changing status to ${newStatus}:`, error);
+      setError(`Failed to change status to ${newStatus}: ${error.message}`);
+    }
   };
 
-  // Show skills assessment result modal
-  const renderAssessmentModal = () => {
-    if (!selectedAssessment) return null;
-
-    return (
-      <div style={styles.modalBackdrop}>
-        <div style={{ ...styles.modalContent, maxWidth: '800px' }}>
-          <SkillsAssessmentResult 
-            assessment={selectedAssessment}
-            onClose={() => setSelectedAssessment(null)}
-          />
-        </div>
-      </div>
-    );
-  };
-
-  // Loading state
   if (loading) {
     return (
-      <Layout>
-        <div style={styles.container}>
-          <div style={styles.loading}>Loading requisition details...</div>
-        </div>
-      </Layout>
+      <div className="min-h-screen bg-gray-50 flex justify-center items-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
     );
   }
 
-  // Error state
   if (error) {
     return (
-      <Layout>
-        <div style={styles.container}>
-          <div style={styles.error}>{error}</div>
-          <Link href="/requisitions">
-            <button style={styles.backButton}>Back to Requisitions</button>
-          </Link>
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md max-w-md mb-4">
+          <p>{error}</p>
         </div>
-      </Layout>
+        <Link 
+          href="/requisitions" 
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+        >
+          Back to Requisitions
+        </Link>
+      </div>
     );
   }
 
-  // No requisition found
   if (!requisition) {
     return (
-      <Layout>
-        <div style={styles.container}>
-          <div style={styles.error}>Requisition not found</div>
-          <Link href="/requisitions">
-            <button style={styles.backButton}>Back to Requisitions</button>
-          </Link>
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md max-w-md mb-4">
+          <p>Requisition not found or you do not have permission to view it.</p>
         </div>
-      </Layout>
+        <Link 
+          href="/requisitions" 
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+        >
+          Back to Requisitions
+        </Link>
+      </div>
     );
   }
 
+  const createdDate = requisition.createdAt ? 
+    new Date(requisition.createdAt.seconds * 1000).toLocaleDateString() : 
+    'Unknown';
+
   return (
-    <Layout>
-      <div style={styles.container}>
-        {/* Header with title and actions */}
-        <div style={styles.header}>
-          <div>
-            <h1 style={styles.title}>{requisition.title}</h1>
-            <div style={styles.subheader}>
-              {getStatusBadge(requisition.status)}
-              <span style={styles.company}>{requisition.company}</span>
-              <span style={styles.location}>{requisition.location}</span>
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="md:flex md:items-center md:justify-between">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                {requisition.title}
+              </h1>
+              <div className="mt-1 flex flex-col sm:flex-row sm:flex-wrap sm:mt-0 sm:space-x-6">
+                <div className="mt-2 flex items-center text-sm text-gray-500">
+                  <svg className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                  </svg>
+                  {requisition.location || 'No location specified'}
+                </div>
+                <div className="mt-2 flex items-center text-sm text-gray-500">
+                  <svg className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                  </svg>
+                  Created: {createdDate}
+                </div>
+                <span className={`mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  requisition.status === 'active' ? 'bg-green-100 text-green-800' : 
+                  requisition.status === 'draft' ? 'bg-gray-100 text-gray-800' : 
+                  requisition.status === 'closed' ? 'bg-red-100 text-red-800' : 
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {requisition.status || 'Draft'}
+                </span>
+              </div>
+            </div>
+            <div className="mt-4 flex md:mt-0 md:ml-4 space-x-2">
+              <Link
+                href="/requisitions"
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              >
+                Back to List
+              </Link>
+              
+              {requisition.status === 'draft' && (
+                <button
+                  type="button"
+                  onClick={() => handleStatusChange('active')}
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700"
+                >
+                  Activate
+                </button>
+              )}
+              
+              {requisition.status === 'active' && (
+                <button
+                  type="button"
+                  onClick={() => handleStatusChange('closed')}
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
+                >
+                  Close
+                </button>
+              )}
+              
+              {!isEditing && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+                >
+                  Edit
+                </button>
+              )}
+              
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(true)}
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
+              >
+                Delete
+              </button>
             </div>
           </div>
-          
-          <div style={styles.actions}>
-            <button 
-              style={styles.editButton}
-              onClick={() => setEditMode(true)}
-            >
-              Edit
-            </button>
-            
-            {requisition.status === 'draft' && (
-              <button 
-                style={styles.activateButton}
-                onClick={handleActivateRequisition}
-              >
-                Activate
-              </button>
-            )}
-            
-            {requisition.status === 'active' && (
-              <button 
-                style={styles.closeButton}
-                onClick={handleCloseRequisition}
-              >
-                Close
-              </button>
-            )}
-            
-            <button 
-              style={styles.deleteButton}
-              onClick={() => setDeleteModalOpen(true)}
-            >
-              Delete
-            </button>
-          </div>
         </div>
-        
-        {/* Tabs */}
-        <div style={styles.tabs}>
-          <button 
-            style={{
-              ...styles.tab,
-              ...(activeTab === 'details' ? styles.activeTab : {})
-            }}
-            onClick={() => {
-              setActiveTab('details');
-              router.push(`/requisitions/${id}?tab=details`, undefined, { shallow: true });
-            }}
-          >
-            Details
-          </button>
-          
-          <button 
-            style={{
-              ...styles.tab,
-              ...(activeTab === 'candidates' ? styles.activeTab : {})
-            }}
-            onClick={() => {
-              setActiveTab('candidates');
-              router.push(`/requisitions/${id}?tab=candidates`, undefined, { shallow: true });
-            }}
-          >
-            Matching Candidates
-          </button>
-          
-          <button 
-            style={{
-              ...styles.tab,
-              ...(activeTab === 'applications' ? styles.activeTab : {})
-            }}
-            onClick={() => {
-              setActiveTab('applications');
-              router.push(`/requisitions/${id}?tab=applications`, undefined, { shallow: true });
-            }}
-          >
-            Applications
-          </button>
-          
-          <button 
-            style={{
-              ...styles.tab,
-              ...(activeTab === 'analytics' ? styles.activeTab : {})
-            }}
-            onClick={() => {
-              setActiveTab('analytics');
-              router.push(`/requisitions/${id}?tab=analytics`, undefined, { shallow: true });
-            }}
-          >
-            Analytics
-          </button>
-        </div>
-        
-        {/* Tab Content */}
-        <div style={styles.tabContent}>
-          {/* Details Tab */}
-          {activeTab === 'details' && (
-            <div>
-              {/* Job Information Section */}
-              <div style={styles.section}>
-                <h2 style={styles.sectionTitle}>Job Information</h2>
-                
-                <div style={styles.detailGrid}>
-                  <div style={styles.detailItem}>
-                    <span style={styles.detailLabel}>Job Title</span>
-                    <span style={styles.detailValue}>{requisition.title}</span>
-                  </div>
-                  
-                  <div style={styles.detailItem}>
-                    <span style={styles.detailLabel}>Company</span>
-                    <span style={styles.detailValue}>{requisition.company}</span>
-                  </div>
-                  
-                  <div style={styles.detailItem}>
-                    <span style={styles.detailLabel}>Location</span>
-                    <span style={styles.detailValue}>{requisition.location}</span>
-                  </div>
-                  
-                  <div style={styles.detailItem}>
-                    <span style={styles.detailLabel}>Work Type</span>
-                    <span style={styles.detailValue}>{requisition.workType || 'Not specified'}</span>
-                  </div>
-                  
-                  <div style={styles.detailItem}>
-                    <span style={styles.detailLabel}>Remote</span>
-                    <span style={styles.detailValue}>{requisition.remote ? 'Yes' : 'No'}</span>
-                  </div>
-                  
-                  <div style={styles.detailItem}>
-                    <span style={styles.detailLabel}>Industry</span>
-                    <span style={styles.detailValue}>{requisition.industry || 'Not specified'}</span>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Description Section */}
-              <div style={styles.section}>
-                <h2 style={styles.sectionTitle}>Job Description</h2>
-                <div style={styles.description}>
-                  {requisition.description || 'No description provided.'}
-                </div>
-              </div>
-              
-              {/* Compensation Section */}
-              <div style={styles.section}>
-                <h2 style={styles.sectionTitle}>Compensation</h2>
-                
-                <div style={styles.detailGrid}>
-                  <div style={styles.detailItem}>
-                    <span style={styles.detailLabel}>Salary Range</span>
-                    <span style={styles.detailValue}>
-                      {requisition.salaryMin && requisition.salaryMax 
-                        ? `${requisition.salaryCurrency || 'USD'} ${requisition.salaryMin.toLocaleString()} - ${requisition.salaryMax.toLocaleString()} (${requisition.salaryPeriod || 'annual'})`
-                        : 'Not specified'}
-                    </span>
-                  </div>
-                  
-                  <div style={styles.detailItem}>
-                    <span style={styles.detailLabel}>Benefits</span>
-                    <div style={styles.skillsContainer}>
-                      {requisition.benefits && requisition.benefits.length > 0 ? (
-                        requisition.benefits.map((benefit, index) => (
-                          <span key={index} style={styles.tag}>{benefit}</span>
-                        ))
-                      ) : (
-                        <span style={styles.detailValue}>None specified</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Required Skills Section */}
-              <div style={styles.section}>
-                <h2 style={styles.sectionTitle}>Required Skills</h2>
-                
-                {requisition.requiredSkills && requisition.requiredSkills.length > 0 ? (
-                  <div style={styles.skillsList}>
-                    {requisition.requiredSkills.map((skill, index) => (
-                      <div key={index} style={styles.skillItem}>
-                        <div style={styles.skillName}>{skill.skill}</div>
-                        <div style={styles.skillDetails}>
-                          <span style={styles.skillImportance}>
-                            {['', 'Nice to have', 'Helpful', 'Important', 'Very Important', 'Essential'][skill.importance]}
-                          </span>
-                          <span style={styles.skillYears}>{skill.yearsRequired} years</span>
+      </header>
+
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        {isEditing ? (
+          <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <form onSubmit={handleUpdate}>
+                <div className="space-y-6">
+                  {error && (
+                    <div className="rounded-md bg-red-50 p-4">
+                      <div className="flex">
+                        <div className="ml-3">
+                          <p className="text-sm text-red-700">{error}</p>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={styles.emptyMessage}>No required skills specified.</div>
-                )}
-              </div>
-              
-              {/* Education Requirements Section */}
-              <div style={styles.section}>
-                <h2 style={styles.sectionTitle}>Education & Experience</h2>
-                
-                <div style={styles.detailGrid}>
-                  <div style={styles.detailItem}>
-                    <span style={styles.detailLabel}>Experience Required</span>
-                    <span style={styles.detailValue}>
-                      {requisition.requiredExperience 
-                        ? `${requisition.requiredExperience} years`
-                        : 'No specific experience required'}
-                    </span>
-                  </div>
-                  
-                  <div style={styles.detailItem}>
-                    <span style={styles.detailLabel}>Education Requirements</span>
-                    {requisition.requiredEducation && requisition.requiredEducation.length > 0 ? (
-                      <div style={styles.educationList}>
-                        {requisition.requiredEducation.map((edu, index) => (
-                          <div key={index} style={styles.educationItem}>
-                            <div style={styles.educationDegree}>
-                              {edu.degreeLevel === 'high_school' ? 'High School' :
-                                edu.degreeLevel === 'associate' ? 'Associate\'s Degree' :
-                                edu.degreeLevel === 'bachelor' ? 'Bachelor\'s Degree' :
-                                edu.degreeLevel === 'master' ? 'Master\'s Degree' :
-                                edu.degreeLevel === 'doctorate' ? 'Doctorate' :
-                                edu.degreeLevel === 'certification' ? 'Certification' :
-                                'No specific degree'}
-                            </div>
-                            {edu.field && (
-                              <div style={styles.educationField}>
-                                Field: {edu.field}
-                              </div>
-                            )}
-                            <div style={styles.educationRequired}>
-                              {edu.required ? 'Required' : 'Preferred'}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <span style={styles.detailValue}>No specific education requirements</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              
-              {/* Verification Requirements Section */}
-              <div style={styles.section}>
-                <h2 style={styles.sectionTitle}>Verification Requirements</h2>
-                
-                <div style={styles.detailGrid}>
-                  <div style={styles.detailItem}>
-                    <span style={styles.detailLabel}>Required Verifications</span>
-                    <div>
-                      {requisition.verificationRequirements ? (
-                        <ul style={styles.verificationList}>
-                          {requisition.verificationRequirements.educationVerified && (
-                            <li style={styles.verificationItem}>Education must be verified</li>
-                          )}
-                          {requisition.verificationRequirements.experienceVerified && (
-                            <li style={styles.verificationItem}>Work experience must be verified</li>
-                          )}
-                          {requisition.verificationRequirements.skillsVerified && (
-                            <li style={styles.verificationItem}>Skills must be verified</li>
-                          )}
-                          {!requisition.verificationRequirements.educationVerified && 
-                            !requisition.verificationRequirements.experienceVerified && 
-                            !requisition.verificationRequirements.skillsVerified && (
-                            <li style={styles.verificationItem}>No verification requirements</li>
-                          )}
-                        </ul>
-                      ) : (
-                        <span style={styles.detailValue}>No verification requirements</span>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div style={styles.detailItem}>
-                    <span style={styles.detailLabel}>Minimum Verification Strength</span>
-                    <span style={styles.detailValue}>
-                      {requisition.verificationRequirements ? (
-                        requisition.verificationRequirements.minimumVerificationStrength === 'low' ? 'Low (basic verification)' :
-                        requisition.verificationRequirements.minimumVerificationStrength === 'medium' ? 'Medium (standard verification)' :
-                        requisition.verificationRequirements.minimumVerificationStrength === 'high' ? 'High (rigorous verification)' :
-                        'None (accept all)'
-                      ) : 'None (accept all)'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Application Process Section */}
-              <div style={styles.section}>
-                <h2 style={styles.sectionTitle}>Application Process</h2>
-                
-                <div style={styles.detailGrid}>
-                  <div style={styles.detailItem}>
-                    <span style={styles.detailLabel}>Accept Applications Through</span>
-                    <span style={styles.detailValue}>
-                      {requisition.applicationProcess && requisition.applicationProcess.acceptDirect 
-                        ? 'VFied Platform' 
-                        : 'External Application Only'}
-                    </span>
-                  </div>
-                  
-                  {requisition.applicationProcess && requisition.applicationProcess.redirectUrl && (
-                    <div style={styles.detailItem}>
-                      <span style={styles.detailLabel}>External Application URL</span>
-                      <a 
-                        href={requisition.applicationProcess.redirectUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        style={styles.link}
-                      >
-                        {requisition.applicationProcess.redirectUrl}
-                      </a>
                     </div>
                   )}
                   
-                  <div style={styles.detailItem}>
-                    <span style={styles.detailLabel}>Skills Assessment Required</span>
-                    <span style={styles.detailValue}>
-                      {requisition.applicationProcess && requisition.applicationProcess.assessmentRequired 
-                        ? 'Yes' 
-                        : 'No'}
-                    </span>
+                  <div>
+                    <label htmlFor="title" className="block text-sm font-medium text-gray-700">
+                      Job Title *
+                    </label>
+                    <input
+                      type="text"
+                      name="title"
+                      id="title"
+                      value={formData.title}
+                      onChange={handleChange}
+                      required
+                      className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                    />
                   </div>
                   
-                  <div style={styles.detailItem}>
-                    <span style={styles.detailLabel}>AI Matching Enabled</span>
-                    <span style={styles.detailValue}>
-                      {requisition.applicationProcess && requisition.applicationProcess.allowAiMatching 
-                        ? 'Yes' 
-                        : 'No'}
-                    </span>
+                  <div>
+                    <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+                      Job Description *
+                    </label>
+                    <textarea
+                      id="description"
+                      name="description"
+                      rows={4}
+                      value={formData.description}
+                      onChange={handleChange}
+                      required
+                      className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="location" className="block text-sm font-medium text-gray-700">
+                      Location
+                    </label>
+                    <input
+                      type="text"
+                      name="location"
+                      id="location"
+                      value={formData.location}
+                      onChange={handleChange}
+                      className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="requiredSkills" className="block text-sm font-medium text-gray-700">
+                      Required Skills (comma separated)
+                    </label>
+                    <input
+                      type="text"
+                      name="requiredSkills"
+                      id="requiredSkills"
+                      value={formData.requiredSkills}
+                      onChange={handleChange}
+                      className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <div>
+                      <label htmlFor="minSalary" className="block text-sm font-medium text-gray-700">
+                        Minimum Salary
+                      </label>
+                      <div className="mt-1 relative rounded-md shadow-sm">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <span className="text-gray-500 sm:text-sm">$</span>
+                        </div>
+                        <input
+                          type="number"
+                          name="minSalary"
+                          id="minSalary"
+                          value={formData.minSalary}
+                          onChange={handleChange}
+                          className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-7 sm:text-sm border-gray-300 rounded-md"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="maxSalary" className="block text-sm font-medium text-gray-700">
+                        Maximum Salary
+                      </label>
+                      <div className="mt-1 relative rounded-md shadow-sm">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <span className="text-gray-500 sm:text-sm">$</span>
+                        </div>
+                        <input
+                          type="number"
+                          name="maxSalary"
+                          id="maxSalary"
+                          value={formData.maxSalary}
+                          onChange={handleChange}
+                          className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-7 sm:text-sm border-gray-300 rounded-md"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="type" className="block text-sm font-medium text-gray-700">
+                      Employment Type
+                    </label>
+                    <select
+                      id="type"
+                      name="type"
+                      value={formData.type}
+                      onChange={handleChange}
+                      className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    >
+                      <option value="full-time">Full-time</option>
+                      <option value="part-time">Part-time</option>
+                      <option value="contract">Contract</option>
+                      <option value="internship">Internship</option>
+                      <option value="temporary">Temporary</option>
+                    </select>
+                  </div>
+                
+                  <div className="flex justify-end space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(false)}
+                      className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+                    >
+                      {saving ? 'Saving...' : 'Save Changes'}
+                    </button>
                   </div>
                 </div>
-                
-                {requisition.applicationProcess && requisition.applicationProcess.customQuestions && 
-                  requisition.applicationProcess.customQuestions.length > 0 && (
-                  <div style={{ marginTop: '16px' }}>
-                    <span style={styles.detailLabel}>Custom Application Questions</span>
-                    <ol style={styles.questionsList}>
-                      {requisition.applicationProcess.customQuestions.map((question, index) => (
-                        <li key={index} style={styles.questionItem}>{question}</li>
-                      ))}
-                    </ol>
-                  </div>
-                )}
+              </form>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
+              <div className="px-4 py-5 sm:px-6">
+                <h3 className="text-lg leading-6 font-medium text-gray-900">Job Details</h3>
+                <p className="mt-1 max-w-2xl text-sm text-gray-500">Details about the job requisition.</p>
               </div>
-              
-              {/* Posting Details Section */}
-              <div style={styles.section}>
-                <h2 style={styles.sectionTitle}>Posting Details</h2>
-                
-                <div style={styles.detailGrid}>
-                  <div style={styles.detailItem}>
-                    <span style={styles.detailLabel}>Status</span>
-                    <span style={styles.detailValue}>{requisition.status}</span>
+              <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
+                <dl className="grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <dt className="text-sm font-medium text-gray-500">Description</dt>
+                    <dd className="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{requisition.description}</dd>
                   </div>
                   
-                  <div style={styles.detailItem}>
-                    <span style={styles.detailLabel}>Visibility</span>
-                    <span style={styles.detailValue}>
-                      {requisition.visibility === 'public' ? 'Public (visible to all)' :
-                        requisition.visibility === 'private' ? 'Private (by invitation only)' :
-                        requisition.visibility === 'network' ? 'Network (visible to your network)' :
-                        'Public'}
-                    </span>
+                  <div className="sm:col-span-1">
+                    <dt className="text-sm font-medium text-gray-500">Employment Type</dt>
+                    <dd className="mt-1 text-sm text-gray-900 capitalize">{requisition.type || 'Not specified'}</dd>
                   </div>
                   
-                  <div style={styles.detailItem}>
-                    <span style={styles.detailLabel}>Expiry Date</span>
-                    <span style={styles.detailValue}>
-                      {requisition.expiryDate 
-                        ? new Date(requisition.expiryDate).toLocaleDateString() 
-                        : 'No expiration'}
-                    </span>
+                  <div className="sm:col-span-1">
+                    <dt className="text-sm font-medium text-gray-500">Salary Range</dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {requisition.salary?.min && requisition.salary?.max ? 
+                        `$${requisition.salary.min.toLocaleString()} - $${requisition.salary.max.toLocaleString()}` : 
+                        'Not specified'}
+                    </dd>
                   </div>
                   
-                  <div style={styles.detailItem}>
-                    <span style={styles.detailLabel}>Created</span>
-                    <span style={styles.detailValue}>
-                      {requisition.createdAt 
-                        ? new Date(requisition.createdAt.seconds * 1000).toLocaleDateString() 
-                        : 'Unknown'}
-                    </span>
-                  </div>
-                  
-                  <div style={styles.detailItem}>
-                    <span style={styles.detailLabel}>Reference ID</span>
-                    <span style={styles.detailValue}>
-                      {requisition.referenceId || 'None'}
-                    </span>
-                  </div>
-                  
-                  <div style={styles.detailItem}>
-                    <span style={styles.detailLabel}>Keywords</span>
-                    <div style={styles.skillsContainer}>
-                      {requisition.keywords && requisition.keywords.length > 0 ? (
-                        requisition.keywords.map((keyword, index) => (
-                          <span key={index} style={styles.tag}>{keyword}</span>
-                        ))
+                  <div className="sm:col-span-2">
+                    <dt className="text-sm font-medium text-gray-500">Required Skills</dt>
+                    <dd className="mt-1 text-sm text-gray-900">
+                      {requisition.requiredSkills && requisition.requiredSkills.length > 0 ? (
+                        <div className="flex flex-wrap">
+                          {requisition.requiredSkills.map((skill, index) => (
+                            <span 
+                              key={index} 
+                              className="mr-2 mb-2 px-2 py-1 bg-indigo-100 text-indigo-800 text-xs rounded-md"
+                            >
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
                       ) : (
-                        <span style={styles.detailValue}>None</span>
+                        'No specific skills required'
                       )}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            </div>
+            
+            <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+              <div className="px-4 py-5 sm:px-6">
+                <h3 className="text-lg leading-6 font-medium text-gray-900">Candidate Management</h3>
+                <p className="mt-1 max-w-2xl text-sm text-gray-500">
+                  View and manage candidates for this position.
+                </p>
+              </div>
+              <div className="border-t border-gray-200 px-4 py-5 sm:p-0">
+                <div className="py-8 px-4 text-center">
+                  {requisition.status === 'draft' ? (
+                    <div>
+                      <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                      </svg>
+                      <h3 className="mt-2 text-sm font-medium text-gray-900">Requisition is in draft mode</h3>
+                      <p className="mt-1 text-sm text-gray-500">
+                        Activate this requisition to start receiving applications from candidates.
+                      </p>
+                      <div className="mt-6">
+                        <button
+                          type="button"
+                          onClick={() => handleStatusChange('active')}
+                          className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                        >
+                          Activate Requisition
+                        </button>
+                      </div>
+                    </div>
+                  ) : requisition.status === 'closed' ? (
+                    <div>
+                      <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                      </svg>
+                      <h3 className="mt-2 text-sm font-medium text-gray-900">Requisition is closed</h3>
+                      <p className="mt-1 text-sm text-gray-500">
+                        This requisition is no longer accepting new applications.
+                      </p>
+                      <div className="mt-6">
+                        <button
+                          type="button"
+                          onClick={() => handleStatusChange('active')}
+                          className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                        >
+                          Reopen Requisition
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                      </svg>
+                      <h3 className="mt-2 text-sm font-medium text-gray-900">No candidates yet</h3>
+                      <p className="mt-1 text-sm text-gray-500">
+                        Candidates who apply will appear here.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </main>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed z-10 inset-0 overflow-y-auto">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="sm:flex sm:items-start">
+                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                    <svg className="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900">Delete Requisition</h3>
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500">
+                        Are you sure you want to delete this requisition? This action cannot be undone.
+                      </p>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-          
-          {/* Matching Candidates Tab */}
-          {activeTab === 'candidates' && (
-            <div>
-              {requisition.status === 'draft' ? (
-                <div style={styles.infoMessage}>
-                  Candidate matching is only available for active requisitions. Please activate this requisition to see matching candidates.
-                </div>
-              ) : (
-                <>
-                  <div style={styles.candidatesHeader}>
-                    <h2 style={styles.sectionTitle}>Matching Candidates</h2>
-                    <div style={styles.matchInfo}>
-                      AI matching is {requisition.applicationProcess && requisition.applicationProcess.allowAiMatching ? 'enabled' : 'disabled'} for this requisition.
-                    </div>
-                  </div>
-                  
-                  <CandidateList requisitionId={id} />
-                </>
-              )}
-            </div>
-          )}
-          
-          {/* Applications Tab */}
-          {activeTab === 'applications' && (
-            <div style={styles.comingSoonContainer}>
-              <div style={styles.comingSoon}>
-                <h3 style={styles.comingSoonTitle}>Coming Soon</h3>
-                <p style={styles.comingSoonText}>
-                  Application management features will be available in a future update.
-                </p>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button 
+                  type="button" 
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
+                  onClick={handleDelete}
+                >
+                  Delete
+                </button>
+                <button 
+                  type="button" 
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                  onClick={() => setShowDeleteModal(false)}
+                >
+                  Cancel
+                </button>
               </div>
             </div>
-          )}
-          
-          {/* Analytics Tab */}
-          {activeTab === 'analytics' && (
-            <div style={styles.comingSoonContainer}>
-              <div style={styles.comingSoon}>
-                <h3 style={styles.comingSoonTitle}>Coming Soon</h3>
-                <p style={styles.comingSoonText}>
-                  Analytics dashboard will be available in a future update.
-                </p>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
-      </div>
-      
-      {/* Modals and Notifications */}
-      {renderDeleteModal()}
-      {renderNotification()}
-      {renderAssessmentModal()}
-    </Layout>
+      )}
+    </div>
   );
-};
+}

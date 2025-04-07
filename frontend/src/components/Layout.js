@@ -45,7 +45,7 @@ export default function Layout({ children }) {
                 <>
                   <Link 
                     href="/requisitions" 
-                    className={`px-4 py-2 rounded-md text-sm font-medium ${isActive('/requisitions')}`}
+                    className={`px-4 py-2 rounded-md text-sm font-medium ${isActive('/requisitions') ? 'bg-indigo-100 text-indigo-700' : 'text-gray-700 hover:bg-gray-50'}`}
                   >
                     Job Requisitions
                   </Link>

@@ -1,47 +1,54 @@
 // src/pages/requisitions/index.js
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import Link from 'next/link';
-import Layout from '@/components/Layout';
-import { getRequisitions } from '../../services/recruiter/requisitionService';
 import { useAuth } from '../../context/AuthContext';
+import { db } from '../../lib/firebase';
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import Link from 'next/link';
 
-const statusColors = {
-  active: { bg: '#dcfce7', text: '#15803d' },  // Green
-  draft: { bg: '#f3f4f6', text: '#6b7280' },   // Gray
-  expired: { bg: '#fee2e2', text: '#b91c1c' }, // Red
-  filled: { bg: '#dbeafe', text: '#1d4ed8' },  // Blue
-  closed: { bg: '#fef3c7', text: '#b45309' }   // Amber
-};
-
-const JobRequisitionList = () => {
+export default function RequisitionsList() {
   const router = useRouter();
   const { currentUser } = useAuth();
   const [requisitions, setRequisitions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');
 
   useEffect(() => {
     if (!currentUser) {
       return;
     }
-    
+
     const fetchRequisitions = async () => {
       try {
-        setLoading(true);
-        
-        // Apply filters
-        const filters = {};
+        let q = query(
+          collection(db, 'requisitions'),
+          where('employerId', '==', currentUser.uid),
+          orderBy('createdAt', 'desc')
+        );
+
+        // Apply status filter if needed
         if (filter !== 'all') {
-          filters.status = filter;
+          q = query(
+            collection(db, 'requisitions'),
+            where('employerId', '==', currentUser.uid),
+            where('status', '==', filter),
+            orderBy('createdAt', 'desc')
+          );
         }
-        
-        const data = await getRequisitions(filters);
-        setRequisitions(data);
-      } catch (err) {
-        console.error('Error fetching requisitions:', err);
-        setError('Failed to load requisitions. Please try again.');
+
+        const querySnapshot = await getDocs(q);
+        const requisitionList = [];
+
+        querySnapshot.forEach((doc) => {
+          requisitionList.push({
+            id: doc.id,
+            ...doc.data()
+          });
+        });
+
+        setRequisitions(requisitionList);
+      } catch (error) {
+        console.error("Error fetching requisitions:", error);
       } finally {
         setLoading(false);
       }
@@ -50,303 +57,144 @@ const JobRequisitionList = () => {
     fetchRequisitions();
   }, [currentUser, filter]);
 
-  const getStatusBadge = (status) => {
-    const colorScheme = statusColors[status] || statusColors.draft;
-    
-    return (
-      <span style={{
-        display: 'inline-block',
-        padding: '4px 8px',
-        borderRadius: '4px',
-        backgroundColor: colorScheme.bg,
-        color: colorScheme.text,
-        fontSize: '12px',
-        fontWeight: '500',
-        textTransform: 'capitalize'
-      }}>
-        {status}
-      </span>
-    );
-  };
-
   return (
-    <Layout>
-      <div style={styles.container}>
-        <div style={styles.header}>
-          <h1 style={styles.title}>Job Requisitions</h1>
-          <Link href="/requisitions/new">
-            <button style={styles.createButton}>
-              Create New Requisition
-            </button>
-          </Link>
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex justify-between items-center">
+            <h1 className="text-3xl font-bold text-gray-900">Job Requisitions</h1>
+            <Link
+              href="/requisitions/new"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+            >
+              + New Job Requisition
+            </Link>
+          </div>
         </div>
+      </header>
 
-        <div style={styles.filterBar}>
-          <div style={styles.filters}>
-            <button 
-              style={{
-                ...styles.filterButton,
-                ...(filter === 'all' ? styles.activeFilter : {})
-              }}
-              onClick={() => setFilter('all')}
-            >
-              All
-            </button>
-            <button 
-              style={{
-                ...styles.filterButton,
-                ...(filter === 'active' ? styles.activeFilter : {})
-              }}
-              onClick={() => setFilter('active')}
-            >
-              Active
-            </button>
-            <button 
-              style={{
-                ...styles.filterButton,
-                ...(filter === 'draft' ? styles.activeFilter : {})
-              }}
-              onClick={() => setFilter('draft')}
-            >
-              Drafts
-            </button>
-            <button 
-              style={{
-                ...styles.filterButton,
-                ...(filter === 'filled' ? styles.activeFilter : {})
-              }}
-              onClick={() => setFilter('filled')}
-            >
-              Filled
-            </button>
-            <button 
-              style={{
-                ...styles.filterButton,
-                ...(filter === 'closed' ? styles.activeFilter : {})
-              }}
-              onClick={() => setFilter('closed')}
-            >
-              Closed
-            </button>
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-4 sm:px-0">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setFilter('all')}
+                className={`${filter === 'all'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  } whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setFilter('active')}
+                className={`${filter === 'active'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  } whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm`}
+              >
+                Active
+              </button>
+              <button
+                onClick={() => setFilter('draft')}
+                className={`${filter === 'draft'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  } whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm`}
+              >
+                Drafts
+              </button>
+              <button
+                onClick={() => setFilter('closed')}
+                className={`${filter === 'closed'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  } whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm`}
+              >
+                Closed
+              </button>
+            </nav>
           </div>
         </div>
 
         {loading ? (
-          <div style={styles.loading}>Loading requisitions...</div>
-        ) : error ? (
-          <div style={styles.error}>{error}</div>
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+          </div>
         ) : requisitions.length === 0 ? (
-          <div style={styles.empty}>
-            <p>No requisitions found.</p>
-            {filter !== 'all' && (
-              <p>Try changing your filter or create a new requisition.</p>
-            )}
+          <div className="bg-white shadow overflow-hidden sm:rounded-md mt-6">
+            <div className="px-4 py-5 sm:p-6 text-center">
+              <h3 className="text-lg leading-6 font-medium text-gray-900">No requisitions found</h3>
+              <div className="mt-2 max-w-xl text-sm text-gray-500 mx-auto">
+                <p>Get started by creating your first job requisition.</p>
+              </div>
+              <div className="mt-5">
+                <Link
+                  href="/requisitions/new"
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+                >
+                  Create Job Requisition
+                </Link>
+              </div>
+            </div>
           </div>
         ) : (
-          <div style={styles.list}>
-            {requisitions.map((req) => (
-              <div key={req.id} style={styles.card}>
-                <div style={styles.cardHeader}>
-                  <Link href={`/requisitions/${req.id}`} style={styles.cardTitle}>
-                    {req.title}
-                  </Link>
-                  {getStatusBadge(req.status)}
-                </div>
-                
-                <div style={styles.cardBody}>
-                  <div style={styles.cardInfo}>
-                    <div style={styles.infoItem}>
-                      <span style={styles.infoLabel}>Company:</span>
-                      <span style={styles.infoValue}>{req.company}</span>
-                    </div>
-                    <div style={styles.infoItem}>
-                      <span style={styles.infoLabel}>Location:</span>
-                      <span style={styles.infoValue}>{req.location}</span>
-                    </div>
-                    {req.workType && (
-                      <div style={styles.infoItem}>
-                        <span style={styles.infoLabel}>Type:</span>
-                        <span style={styles.infoValue}>{req.workType}</span>
+          <div className="bg-white shadow overflow-hidden sm:rounded-md mt-6">
+            <ul className="divide-y divide-gray-200">
+              {requisitions.map((req) => (
+                <li key={req.id}>
+                  <Link href={`/requisitions/${req.id}`} className="block hover:bg-gray-50">
+                    <div className="px-4 py-4 sm:px-6">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-indigo-600 truncate">
+                          {req.title}
+                        </p>
+                        <div className="ml-2 flex-shrink-0 flex">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            req.status === 'active' ? 'bg-green-100 text-green-800' : 
+                            req.status === 'draft' ? 'bg-gray-100 text-gray-800' : 
+                            req.status === 'closed' ? 'bg-red-100 text-red-800' : 
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {req.status || 'Draft'}
+                          </span>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                  
-                  <div style={styles.cardMeta}>
-                    <div style={styles.salary}>
-                      {req.salaryMin && req.salaryMax ? (
-                        <span>{req.salaryCurrency || 'USD'} {req.salaryMin.toLocaleString()} - {req.salaryMax.toLocaleString()}</span>
-                      ) : (
-                        <span>Salary not specified</span>
+                      <div className="mt-2 sm:flex sm:justify-between">
+                        <div className="sm:flex">
+                          <p className="flex items-center text-sm text-gray-500">
+                            <svg className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                            </svg>
+                            {req.location || 'No location specified'}
+                          </p>
+                        </div>
+                        <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
+                          <svg className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                          </svg>
+                          <p>
+                            {req.createdAt ? new Date(req.createdAt.seconds * 1000).toLocaleDateString() : 'No date'}
+                          </p>
+                        </div>
+                      </div>
+                      {req.requiredSkills && req.requiredSkills.length > 0 && (
+                        <div className="mt-2 flex flex-wrap">
+                          {req.requiredSkills.map((skill, index) => (
+                            <span key={index} className="mr-2 mb-1 px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-800">
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
-                    
-                    <div style={styles.date}>
-                      Created: {new Date(req.createdAt?.seconds * 1000 || Date.now()).toLocaleDateString()}
-                    </div>
-                  </div>
-                </div>
-                
-                <div style={styles.cardActions}>
-                  <Link href={`/requisitions/${req.id}`} style={styles.viewButton}>
-                    View Details
                   </Link>
-                  {req.status === 'active' && (
-                    <Link href={`/requisitions/${req.id}?tab=candidates`} style={styles.candidatesButton}>
-                      View Candidates
-                    </Link>
-                  )}
-                </div>
-              </div>
-            ))}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
-      </div>
-    </Layout>
+      </main>
+    </div>
   );
-};
-
-const styles = {
-  container: {
-    padding: '20px',
-    maxWidth: '1200px',
-    margin: '0 auto',
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '24px',
-  },
-  title: {
-    fontSize: '28px',
-    fontWeight: 'bold',
-    margin: 0,
-  },
-  createButton: {
-    backgroundColor: '#5a45f8',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '10px 16px',
-    fontWeight: '500',
-    cursor: 'pointer',
-  },
-  filterBar: {
-    marginBottom: '24px',
-  },
-  filters: {
-    display: 'flex',
-    gap: '12px',
-  },
-  filterButton: {
-    background: 'none',
-    border: 'none',
-    padding: '8px 12px',
-    cursor: 'pointer',
-    borderRadius: '4px',
-    color: '#4b5563',
-    fontWeight: '500',
-  },
-  activeFilter: {
-    backgroundColor: '#f3f4f6',
-    color: '#5a45f8',
-  },
-  list: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px',
-  },
-  card: {
-    backgroundColor: 'white',
-    borderRadius: '8px',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-    padding: '16px',
-  },
-  cardHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '12px',
-  },
-  cardTitle: {
-    fontSize: '18px',
-    fontWeight: '600',
-    color: '#111827',
-    textDecoration: 'none',
-  },
-  cardBody: {
-    marginBottom: '16px',
-  },
-  cardInfo: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '16px',
-    marginBottom: '12px',
-  },
-  infoItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-  },
-  infoLabel: {
-    color: '#6b7280',
-    fontWeight: '500',
-  },
-  infoValue: {
-    color: '#111827',
-  },
-  cardMeta: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    color: '#6b7280',
-    fontSize: '14px',
-  },
-  salary: {
-    fontWeight: '500',
-  },
-  cardActions: {
-    display: 'flex',
-    gap: '12px',
-  },
-  viewButton: {
-    display: 'inline-block',
-    padding: '8px 16px',
-    backgroundColor: '#f3f4f6',
-    color: '#1f2937',
-    border: 'none',
-    borderRadius: '4px',
-    fontWeight: '500',
-    cursor: 'pointer',
-    textDecoration: 'none',
-    fontSize: '14px',
-  },
-  candidatesButton: {
-    display: 'inline-block',
-    padding: '8px 16px',
-    backgroundColor: '#5a45f8',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    fontWeight: '500',
-    cursor: 'pointer',
-    textDecoration: 'none',
-    fontSize: '14px',
-  },
-  loading: {
-    textAlign: 'center',
-    padding: '40px 0',
-    color: '#6b7280',
-  },
-  error: {
-    textAlign: 'center',
-    padding: '40px 0',
-    color: '#ef4444',
-  },
-  empty: {
-    textAlign: 'center',
-    padding: '40px 0',
-    color: '#6b7280',
-  },
-};
-
-export default JobRequisitionList;
+}
