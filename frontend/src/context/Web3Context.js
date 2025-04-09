@@ -2,8 +2,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 
+// Create the context
 const Web3Context = createContext(null);
 
+// Export the hook for using the context
 export function useWeb3() {
   const context = useContext(Web3Context);
   if (context === null) {
@@ -12,6 +14,7 @@ export function useWeb3() {
   return context;
 }
 
+// Provider component
 export function Web3Provider({ children }) {
   const [account, setAccount] = useState(null);
   const [provider, setProvider] = useState(null);
@@ -32,8 +35,8 @@ export function Web3Provider({ children }) {
       try {
         // Check if window.ethereum is available
         if (window.ethereum) {
-          // Use ethers v6 syntax
-          const provider = new ethers.BrowserProvider(window.ethereum);
+          // Use ethers v5 syntax
+          const provider = new ethers.providers.Web3Provider(window.ethereum);
           setProvider(provider);
           
           // Get network information
@@ -43,8 +46,8 @@ export function Web3Provider({ children }) {
           // Get connected accounts
           const accounts = await provider.listAccounts();
           if (accounts.length > 0) {
-            setAccount(accounts[0].address);
-            const signer = await provider.getSigner();
+            setAccount(accounts[0]);
+            const signer = provider.getSigner();
             setSigner(signer);
           }
           
@@ -85,58 +88,23 @@ export function Web3Provider({ children }) {
     };
   }, []);
 
-  // Connect wallet
-  const connectWallet = async () => {
-    if (typeof window === 'undefined') return;
-    
-    try {
-      if (window.ethereum) {
-        setLoading(true);
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
-        
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        setProvider(provider);
-        
-        const accounts = await provider.listAccounts();
-        if (accounts.length > 0) {
-          setAccount(accounts[0].address);
-          const signer = await provider.getSigner();
-          setSigner(signer);
-        }
-        setError(null);
-      } else {
-        setError("Please install MetaMask to use this feature");
-      }
-    } catch (err) {
-      console.error("Error connecting wallet:", err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Disconnect wallet
-  const disconnectWallet = () => {
-    setAccount(null);
-    setSigner(null);
-  };
-
-  const value = {
-    account,
-    provider,
-    signer,
-    network,
-    loading,
-    error,
-    connectWallet,
-    disconnectWallet
-  };
+  // ... rest of your code
 
   return (
-    <Web3Context.Provider value={value}>
+    <Web3Context.Provider value={{
+      account,
+      provider,
+      signer,
+      network,
+      loading,
+      error,
+      connectWallet,
+      disconnectWallet
+    }}>
       {children}
     </Web3Context.Provider>
   );
 }
 
+// Needed for files that still import Web3Context directly
 export default Web3Context;

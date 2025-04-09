@@ -1,7 +1,11 @@
 // frontend/src/lib/firebase.js
 import { initializeApp } from 'firebase/app';
-import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
+import { 
+  getFirestore, 
+  enableIndexedDbPersistence,  // Make sure this is imported
+  CACHE_SIZE_UNLIMITED 
+} from 'firebase/firestore';
 
 // Your Firebase configuration
 const firebaseConfig = {
@@ -20,34 +24,25 @@ const isConfigValid = () => {
          firebaseConfig.projectId;
 };
 
-// Initialize Firebase with error handling
-let app;
-let db;
-let auth;
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-try {
-  if (!isConfigValid()) {
-    console.error('Firebase configuration is incomplete or missing. Check your environment variables.');
-  }
-  
-  app = initializeApp(firebaseConfig, 'VFiedApp');
-  db = getFirestore(app);
-  auth = getAuth(app);
-  
-  console.log('Firebase initialized successfully');
-  
-  // Connect to emulators in development mode (only in browser environment)
-  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true') {
-    try {
-      connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
-      connectFirestoreEmulator(db, 'localhost', 8080);
-      console.log('Connected to Firebase emulators');
-    } catch (emulatorError) {
-      console.error('Failed to connect to Firebase emulators:', emulatorError);
-    }
-  }
-} catch (error) {
-  console.error('Error initializing Firebase:', error);
+// Enable offline persistence when in the browser
+if (typeof window !== 'undefined') {
+  enableIndexedDbPersistence(db)
+    .catch((err) => {
+      if (err.code === 'failed-precondition') {
+        // Multiple tabs open, persistence can only be enabled in one tab at a time.
+        console.warn('Firestore persistence failed: Multiple tabs open');
+      } else if (err.code === 'unimplemented') {
+        // The current browser doesn't support all of the features required to enable persistence
+        console.warn('Firestore persistence not supported by this browser');
+      } else {
+        console.error('Error enabling Firestore persistence:', err);
+      }
+    });
 }
 
 // Helper functions

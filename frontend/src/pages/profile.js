@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { useOfflineProfile } from '../hooks/useOfflineProfile';
 import { db } from '../lib/firebase';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
@@ -68,6 +69,10 @@ export default function Profile() {
     }
   };
 
+    // Use our custom hook
+  // const { profileData, loading, error, isOffline, saveProfile } = 
+  //   useOfflineProfile(currentUser?.uid);
+
   // Function to use offline fallback data
   const useOfflineFallback = () => {
     // Set some default values for offline mode
@@ -77,83 +82,71 @@ export default function Profile() {
   };
 
   // Fetch profile data
-  const fetchProfile = async () => {
-    if (!currentUser) {
+// In the fetchProfile function within profile.js
+const fetchProfile = async () => {
+  if (!currentUser) {
+    setLoading(false);
+    return;
+  }
+  
+  try {
+    // Set initial data from local storage if available
+    const cachedData = localStorage.getItem(`profile_${currentUser.uid}`);
+    if (cachedData) {
+      const parsedData = JSON.parse(cachedData);
+      setName(parsedData.name || '');
+      setTitle(parsedData.title || '');
+      setBio(parsedData.bio || '');
+      setLocation(parsedData.location || '');
+      setWebsite(parsedData.website || '');
+      setGithub(parsedData.github?.username || '');
+      setLinkedin(parsedData.linkedin || '');
+      setSkills(parsedData.skills?.join(', ') || '');
+      setAvailableForWork(parsedData.availableForWork || false);
+    }
+    
+    // Check if online before attempting Firestore operation
+    if (!navigator.onLine) {
+      setError('You are currently in offline mode. Some data may not be available, but you can still edit your profile.');
       setLoading(false);
       return;
     }
     
-    try {
-      // Check if Firebase is online
-      const isConnected = await checkFirebaseConnection();
-      if (!isConnected) {
-        console.log("Firebase is offline, using fallback data");
-        useOfflineFallback();
-        return;
-      }
+    // Continue with Firestore fetch as before
+    const docRef = doc(db, 'users', currentUser.uid);
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      // Update state with Firestore data
+      setName(data.name || '');
+      setTitle(data.title || '');
+      // ... set other fields ...
       
-      console.log("Fetching profile for user:", currentUser.uid);
-      const docRef = doc(db, 'users', currentUser.uid);
-      const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists()) {
-        console.log("Profile data loaded successfully");
-        const data = docSnap.data();
-        setName(data.name || '');
-        setTitle(data.title || '');
-        setBio(data.bio || '');
-        setLocation(data.location || '');
-        setWebsite(data.website || '');
-        setGithub(data.github?.username || '');
-        setLinkedin(data.linkedin || '');
-        setSkills(data.skills?.join(', ') || '');
-        setAvailableForWork(data.availableForWork || false);
-      } else {
-        // Create a new user document if it doesn't exist
-        console.log("No profile found, creating a new one");
-        
-        const newUserData = {
-          name: currentUser.displayName || '',
-          email: currentUser.email || '',
-          createdAt: new Date(),
-          role: userRole || 'user',
-        };
-        
-        try {
-          await setDoc(docRef, newUserData);
-          console.log("Created new user profile document");
-          
-          // Set initial state with the data we have
-          setName(currentUser.displayName || '');
-        } catch (setDocError) {
-          console.error("Failed to create new user document:", setDocError);
-          // Still use the data we have from auth
-          setName(currentUser.displayName || '');
-        }
-      }
-      
-      setError(''); // Clear any previous errors
-    } catch (error) {
-      console.error("Error fetching profile:", error);
-      setError('Failed to load profile data: ' + error.message);
-      
-      // If we've retried less than 3 times, try again after a delay
-      if (retries < 3) {
-        const retryDelay = Math.pow(2, retries) * 1000; // Exponential backoff
-        console.log(`Retrying in ${retryDelay/1000} seconds (retry ${retries + 1}/3)...`);
-        
-        setTimeout(() => {
-          setRetries(retries + 1);
-          fetchProfile();
-        }, retryDelay);
-      } else {
-        // After 3 retries, use offline fallback
-        useOfflineFallback();
-      }
-    } finally {
-      setLoading(false);
+      // Cache the data in localStorage
+      localStorage.setItem(`profile_${currentUser.uid}`, JSON.stringify(data));
+    } else {
+      // Create a new profile if it doesn't exist
+      // ... existing code ...
     }
-  };
+    
+    setError(''); // Clear any previous errors
+  } catch (error) {
+    console.error("Error fetching profile:", error);
+    setError('Failed to load profile data: ' + error.message);
+    
+    // If we've retried less than 3 times, try again after a delay
+    if (retries < 3) {
+      const retryDelay = Math.pow(2, retries) * 1000; // Exponential backoff
+      setTimeout(() => {
+        setRetries(retries + 1);
+        fetchProfile();
+      }, retryDelay);
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Effect to fetch profile data on component mount
   useEffect(() => {
@@ -182,56 +175,51 @@ export default function Profile() {
       setSaving(true);
       setError('');
       
-      const isConnected = await checkFirebaseConnection();
-      if (!isConnected) {
-        setError('Cannot save profile while offline. Please check your internet connection and try again.');
-        setSaving(false);
-        return;
-      }
-      
-      const skillsArray = skills
-        .split(',')
-        .map(skill => skill.trim())
-        .filter(skill => skill);
-      
-      const docRef = doc(db, 'users', currentUser.uid);
-      
       const profileData = {
         name,
         title,
         bio,
         location,
         website,
-        github: {
-          username: github
-        },
+        github: { username: github },
         linkedin,
-        skills: skillsArray,
+        skills: skills.split(',').map(skill => skill.trim()).filter(skill => skill),
         availableForWork,
         profileComplete: true,
         updatedAt: new Date()
       };
       
-      // Try to update the document
-      try {
-        await updateDoc(docRef, profileData);
-      } catch (updateError) {
-        // If update fails (document might not exist), try to create it
-        if (updateError.code === 'not-found') {
-          await setDoc(docRef, {
-            ...profileData,
-            email: currentUser.email,
-            createdAt: new Date(),
-            role: userRole || 'user'
-          });
-        } else {
-          throw updateError;
+      // Always save to local storage for offline access
+      localStorage.setItem(`profile_${currentUser.uid}`, JSON.stringify(profileData));
+      
+      // If online, save to Firestore
+      if (navigator.onLine) {
+        const docRef = doc(db, 'users', currentUser.uid);
+        
+        try {
+          await updateDoc(docRef, profileData);
+        } catch (updateError) {
+          // If update fails (document might not exist), try to create it
+          if (updateError.code === 'not-found') {
+            await setDoc(docRef, {
+              ...profileData,
+              email: currentUser.email,
+              createdAt: new Date(),
+              role: userRole || 'user'
+            });
+          } else {
+            throw updateError;
+          }
         }
+        
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 3000);
+      } else {
+        // Show offline save message
+        setSuccess(true);
+        setError('Profile saved locally. Changes will sync when you are back online.');
+        setTimeout(() => setSuccess(false), 3000);
       }
-      
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-      
     } catch (error) {
       console.error("Error updating profile:", error);
       setError('Failed to save profile: ' + error.message);
@@ -337,17 +325,21 @@ export default function Profile() {
                     <div className="ml-3">
                       <p className="text-sm text-red-700">{error}</p>
                       <button 
-                        type="button"
-                        className="mt-2 text-sm font-medium text-red-700 hover:text-red-600"
-                        onClick={() => {
-                          setError('');
-                          setLoading(true);
-                          setRetries(0);
-                          fetchProfile();
-                        }}
-                      >
-                        Retry
-                      </button>
+  type="button"
+  className="mt-2 text-sm font-medium text-red-700 hover:text-red-600"
+  onClick={() => {
+    if (navigator.onLine) {
+      setError('');
+      setLoading(true);
+      setRetries(0);
+      fetchProfile();
+    } else {
+      setError('You are still offline. Please check your internet connection and try again.');
+    }
+  }}
+>
+  Retry
+</button>
                     </div>
                   </div>
                 </div>

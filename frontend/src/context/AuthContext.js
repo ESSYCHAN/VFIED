@@ -4,77 +4,129 @@ import {
   onAuthStateChanged, 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword,
-  GoogleAuthProvider,
+  GoogleAuthProvider, 
   signInWithPopup,
-  signOut,
-  updateProfile,
-  setPersistence,
-  browserLocalPersistence
+  signOut
 } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
-// Create the context with a default value
-const AuthContext = createContext(null);
+// Create auth context
+const AuthContext = createContext({});
 
+// Export the useAuth hook
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === null) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
+  return useContext(AuthContext);
 }
 
-// src/context/AuthContext.js
-// In src/context/AuthContext.js
+// Create AuthProvider component
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [mounted, setMounted] = useState(false);
+  const [clientSide, setClientSide] = useState(false);
 
-  // Define the signup function within the component
+  // Set clientSide to true when component mounts (client-side only)
+  useEffect(() => {
+    setClientSide(true);
+  }, []);
+
+  // Sign up function
   async function signup(email, password, displayName, role = 'candidate') {
     try {
-      // Create the user
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      
-      // Update profile with display name if provided
-      if (displayName) {
-        await updateProfile(result.user, { displayName });
-      }
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
       // Create user document in Firestore
-      await setDoc(doc(db, 'users', result.user.uid), {
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
         name: displayName || '',
-        email: result.user.email,
+        email: email,
         role: role,
         createdAt: new Date()
       });
       
-      return result;
+      return userCredential;
     } catch (error) {
       console.error("Error during signup:", error);
       throw error;
     }
   }
 
-  // Your other functions like login, logout, etc.
+  // Login function
   async function login(email, password) {
-    // Implementation...
+    try {
+      return await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      console.error("Login error:", error);
+      throw error;
+    }
   }
 
+  // Google sign-in function
   async function signInWithGoogle() {
-    // Implementation...
+    try {
+      if (typeof window !== 'undefined' && !navigator.onLine) {
+        throw new Error('You are offline. Please check your internet connection and try again.');
+      }
+      
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      
+      // Check if user document exists
+      const userDoc = await getDoc(doc(db, 'users', result.user.uid));
+      
+      if (!userDoc.exists()) {
+        await setDoc(doc(db, 'users', result.user.uid), {
+          name: result.user.displayName || '',
+          email: result.user.email,
+          role: 'candidate',
+          createdAt: new Date()
+        });
+      }
+      
+      return result;
+    } catch (error) {
+      console.error("Google sign-in error:", error);
+      throw error;
+    }
   }
 
+  // Logout function
   function logout() {
     return signOut(auth);
   }
 
-  // Rest of your component...
+  // Subscribe to auth state changes
+  useEffect(() => {
+    if (!clientSide) return;
+    
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setCurrentUser(user);
+      
+      if (user) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            setUserRole(userData.role || 'candidate');
+          } else {
+            setUserRole('candidate');
+          }
+        } catch (error) {
+          console.error("Error getting user role:", error);
+          setUserRole('candidate');
+        }
+      } else {
+        setUserRole(null);
+      }
+      
+      setLoading(false);
+    });
+    
+    return unsubscribe;
+  }, [clientSide]);
 
-  // Context value - now signup will be defined
+  // Context value
   const value = {
     currentUser,
     userRole,
@@ -85,6 +137,7 @@ export function AuthProvider({ children }) {
     loading
   };
 
+  // Only render children when on client-side
   return (
     <AuthContext.Provider value={value}>
       {children}
