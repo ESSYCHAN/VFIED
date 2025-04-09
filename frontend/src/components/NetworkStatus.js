@@ -2,42 +2,32 @@
 // frontend/src/components/NetworkStatus.js
 import React, { useState, useEffect } from 'react';
 
+// Add useEffect to avoid hydration errors
 const NetworkStatus = ({ onStatusChange }) => {
-  const [isOnline, setIsOnline] = useState(true);
-
+  const [isMounted, setIsMounted] = useState(false);
+  
   useEffect(() => {
-    // Only run in browser environment
-    if (typeof window !== 'undefined') {
-      // Initial status
-      setIsOnline(navigator.onLine);
-      
-      const handleOnline = () => {
-        setIsOnline(true);
-        if (onStatusChange) onStatusChange(true);
-      };
-
-      const handleOffline = () => {
-        setIsOnline(false);
-        if (onStatusChange) onStatusChange(false);
-      };
-
-      window.addEventListener('online', handleOnline);
-      window.addEventListener('offline', handleOffline);
-
-      return () => {
-        window.removeEventListener('online', handleOnline);
-        window.removeEventListener('offline', handleOffline);
-      };
-    }
+    setIsMounted(true);
+    
+    const handleOnline = () => onStatusChange(true);
+    const handleOffline = () => onStatusChange(false);
+    
+    // Set initial status
+    onStatusChange(navigator.onLine);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, [onStatusChange]);
-
-  if (isOnline) return null;
-
-  return (
-    <div className="fixed top-0 left-0 right-0 bg-red-600 text-white p-2 text-center z-50">
-      You are currently offline. Some features may not be available.
-    </div>
-  );
+  
+  // Don't render anything during SSR
+  if (!isMounted) return null;
+  
+  return null; // Or a UI indicator if you want to show network status
 };
 
 export default NetworkStatus;
