@@ -5,7 +5,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Head from 'next/head';
 import NetworkStatus from '../components/NetworkStatus';
-
+import FirebaseTroubleshooter from '../components/FirebaseTroubleshooter';
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -47,28 +47,46 @@ export default function Login() {
       setLoading(false);
     }
   }
-
   async function handleGoogleSignIn() {
-    // Check if online before attempting Google sign-in (client-side only)
-    if (typeof window !== 'undefined' && !navigator.onLine) {
+    // Only attempt sign-in if online
+    if (!isOnline) {
       setError('You are offline. Please check your internet connection and try again.');
       return;
     }
-
+  
     try {
       setError('');
       setLoading(true);
       await signInWithGoogle();
-      
-      // Redirect based on role
-      redirectBasedOnRole();
+      router.push('/dashboard');
     } catch (error) {
       console.error("Google sign-in error:", error);
-      setError('Failed to sign in with Google: ' + error.message);
+      setError(error.message || 'Failed to sign in with Google');
     } finally {
       setLoading(false);
     }
   }
+
+
+  // In Login component's useEffect
+useEffect(() => {
+  const handleOnline = () => setIsOnline(true);
+  const handleOffline = () => setIsOnline(false);
+  
+  // Set initial status
+  setIsOnline(typeof window !== 'undefined' ? navigator.onLine : true);
+  
+  // Add event listeners
+  window.addEventListener('online', handleOnline);
+  window.addEventListener('offline', handleOffline);
+  
+  return () => {
+    window.removeEventListener('online', handleOnline);
+    window.removeEventListener('offline', handleOffline);
+  };
+}, []);
+
+
 
   function redirectBasedOnRole() {
     // Redirect based on user role
@@ -165,6 +183,11 @@ export default function Login() {
               <span className="px-2 bg-gray-50 text-gray-500">Or continue with</span>
             </div>
           </div>
+          {process.env.NODE_ENV === 'development' && (
+  <div className="mt-4">
+    <FirebaseTroubleshooter />
+  </div>
+)}
 
           <div className="mt-6">
             <button
