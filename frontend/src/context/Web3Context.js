@@ -55,7 +55,7 @@ export function Web3Provider({ children }) {
           window.ethereum.on('accountsChanged', (accounts) => {
             if (accounts.length > 0) {
               setAccount(accounts[0]);
-              provider.getSigner().then(setSigner);
+              setSigner(provider.getSigner());
             } else {
               setAccount(null);
               setSigner(null);
@@ -88,7 +88,46 @@ export function Web3Provider({ children }) {
     };
   }, []);
 
-  // ... rest of your code
+  // Connect wallet function
+  const connectWallet = async () => {
+    try {
+      if (!window.ethereum) {
+        throw new Error("MetaMask is not installed");
+      }
+      
+      setLoading(true);
+      setError(null);
+      
+      // Request account access
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      
+      if (accounts.length > 0) {
+        setAccount(accounts[0]);
+        
+        // Create new provider and signer
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const signer = provider.getSigner();
+        
+        setProvider(provider);
+        setSigner(signer);
+        
+        // Get network information
+        const network = await provider.getNetwork();
+        setNetwork(network);
+      }
+    } catch (err) {
+      console.error("Error connecting wallet:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Disconnect wallet function (for UI purposes, not actual disconnection)
+  const disconnectWallet = () => {
+    setAccount(null);
+    setSigner(null);
+  };
 
   return (
     <Web3Context.Provider value={{

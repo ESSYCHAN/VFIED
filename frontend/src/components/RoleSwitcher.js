@@ -13,6 +13,7 @@ export default function RoleSwitcher() {
       setIsUpdating(true);
       setMessage('');
       
+      // Call API to update role
       const response = await fetch('/api/auth/set-role', {
         method: 'POST',
         headers: {
@@ -22,12 +23,13 @@ export default function RoleSwitcher() {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to update role');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update role');
       }
       
       setMessage(`Role updated to ${newRole}. Please refresh the page.`);
       
-      // Force token refresh
+      // Force refresh after short delay to apply new role
       setTimeout(() => {
         window.location.reload();
       }, 2000);
@@ -39,7 +41,7 @@ export default function RoleSwitcher() {
     }
   };
   
-  // Only show in development
+  // Only show in development environment
   if (process.env.NODE_ENV !== 'development') {
     return null;
   }
@@ -67,7 +69,11 @@ export default function RoleSwitcher() {
           {isUpdating ? 'Updating...' : 'Switch Role'}
         </button>
       </div>
-      {message && <div className="text-xs mt-2">{message}</div>}
+      {message && (
+        <div className={`text-xs mt-2 ${message.includes('Error') ? 'text-red-600' : 'text-green-600'}`}>
+          {message}
+        </div>
+      )}
     </div>
   );
 }
