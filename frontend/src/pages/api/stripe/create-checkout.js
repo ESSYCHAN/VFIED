@@ -1,13 +1,14 @@
-// pages/api/stripe/create-checkout.js
+// src/pages/api/stripe/create-checkout.js
 import Stripe from 'stripe';
-import { getAuth } from 'firebase/auth';
-import { doc, updateDoc, getFirestore } from 'firebase/firestore';
-import { initializeApp } from 'firebase/app';
-import { auth, db } from '../../../lib/firebase';
+import { doc, updateDoc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../../lib/firebase';
+import { verifyAuth } from '../../../lib/auth-helpers';
 
+// Initialize Stripe with your secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export default async function handler(req, res) {
+  // Only allow POST method
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ 
@@ -16,20 +17,32 @@ export default async function handler(req, res) {
     });
   }
 
-  // Validate request body
-  const { jobId, userId } = req.body;
-  if (!jobId || !userId) {
-    return res.status(400).json({
-      error: 'Bad Request',
-      message: 'Missing jobId or userId in request body'
-    });
-  }
-
   try {
-    // Verify user authentication
-    // This is a server-side API, so we can't use client-side auth
-    // Instead, use Firebase Admin SDK or JWT verification
-    // For now, we'll skip this step
+    // Verify authentication
+    const { userId } = await verifyAuth(req);
+    
+    // Validate request body
+    const { jobId, amount, type = 'job_posting' } = req.body;
+    
+    if (!jobId || !amount) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'Missing required parameters in request body'
+      });
+    }
+    
+    // Get job information to use in the checkout description
+    const requisitionRef = doc(db, 'requisitions', jobId);
+    const requisitionDoc = await getDoc(requisitionRef);
+    
+    if (!requisitionDoc.exists()) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'Job requisition not found'
+      });
+    }
+    
+    const requisitionData = requisitionDoc.data();
     
     // Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
@@ -39,9 +52,9 @@ export default async function handler(req, res) {
           currency: 'usd',
           product_data: {
             name: 'Job Posting Publication',
-            description: '30-day premium job listing'
+            description: `30-day premium job listing: ${requisitionData.title}`
           },
-          unit_amount: 9900, // $99.00 in cents
+          unit_amount: amount, // Amount in cents
         },
         quantity: 1,
       }],
@@ -52,27 +65,37 @@ export default async function handler(req, res) {
       metadata: {
         userId,
         jobId,
-        type: 'job_posting'
+        type
       }
     });
 
-    // Update Firestore document
-    // Note: This should be moved to a webhook handler for production
-    try {
-      await updateDoc(doc(db, 'requisitions', jobId), {
-        payment: {
-          status: 'pending',
-          sessionId: session.id,
-          amount: 9900,
-          currency: 'usd',
-          createdAt: new Date().toISOString()
-        },
-        lastUpdated: new Date().toISOString()
-      });
-    } catch (dbError) {
-      console.error('Error updating Firestore:', dbError);
-      // Continue even if Firestore update fails
-    }
+    // Create a payment record in Firestore
+    const paymentRef = doc(db, 'payments', session.id);
+    await setDoc(paymentRef, {
+      userId,
+      amount,
+      currency: 'usd',
+      status: 'pending',
+      type,
+      provider: 'stripe',
+      providerTransactionId: session.id,
+      metadata: {
+        requisitionId: jobId
+      },
+      createdAt: serverTimestamp()
+    });
+
+    // Update the requisition with payment information
+    await updateDoc(requisitionRef, {
+      'payment': {
+        status: 'pending',
+        sessionId: session.id,
+        amount,
+        currency: 'usd',
+        createdAt: serverTimestamp()
+      },
+      updatedAt: serverTimestamp()
+    });
 
     return res.status(200).json({
       success: true,
