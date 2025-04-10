@@ -8,6 +8,22 @@ import { db } from '../../../lib/firebase';
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
+async function createTransactionRecord(db, session, type) {
+  try {
+    await db.collection('transactions').add({
+      type: type,
+      amount: session.amount_total,
+      status: 'completed',
+      paymentId: session.payment_intent || session.id,
+      userId: session.metadata.userId || session.customer,
+      metadata: session.metadata,
+      timestamp: serverTimestamp()
+    });
+  } catch (error) {
+    console.error('Error creating transaction record:', error);
+  }
+}
+
 // Disable body parsing, we need the raw body for webhook verification
 export const config = {
   api: {
@@ -136,6 +152,39 @@ export default async function handler(req, res) {
         
         break;
       }
+
+      // Then in your checkout.session.completed case
+if (session.metadata && session.metadata.paymentType) {
+  switch(session.metadata.paymentType) {
+    case 'job_posting_fee': {
+      // Create transaction record
+      await createTransactionRecord(db, session, 'job_posting_fee');
+      
+      // Update requisition status if applicable
+      if (session.metadata.requisitionId) {
+        const requisitionRef = doc(db, 'requisitions', session.metadata.requisitionId);
+        await updateDoc(requisitionRef, {
+          status: 'active',
+          paymentStatus: 'paid',
+          updatedAt: serverTimestamp()
+        });
+      }
+      break;
+    }
+    
+    case 'verification_fee': {
+      await createTransactionRecord(db, session, 'verification_fee');
+      // Handle credential verification updates
+      break;
+    }
+    
+    case 'hire_success_fee': {
+      await createTransactionRecord(db, session, 'hire_success_fee');
+      // Handle hire record updates
+      break;
+    }
+  }
+}
       
       // Handle subscription events
       case 'customer.subscription.created':

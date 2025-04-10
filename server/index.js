@@ -4,6 +4,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const { admin } = require('./firebase/admin');
 const requisitionRoutes = require('./routes/requisitions');
+const paymentRoutes = require('./routes/payments');
 
 // Load environment variables
 dotenv.config();
@@ -37,6 +38,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/ai', aiServiceRoutes);
 app.use('/api/ai-recruitment', aiRecruitmentRoutes);
 app.use('/api/verification', verificationRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

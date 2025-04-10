@@ -5,6 +5,9 @@ import { useAuth } from '../../context/AuthContext';
 import { db } from '../../lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import Link from 'next/link';
+import { Elements } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
+import JobPostingPayment from '../../components/employer/JobPostingPayment';
 
 export default function NewRequisition() {
   const router = useRouter();
@@ -21,6 +24,9 @@ export default function NewRequisition() {
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_KEY);
+  const [requisitionId, setRequisitionId] = useState(null);
+  const [showPayment, setShowPayment] = useState(false);
   
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -63,21 +69,47 @@ export default function NewRequisition() {
         status: 'draft',
         employerId: currentUser.uid,
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
+        paymentStatus: 'required'
       };
       
       // Save to Firestore
       const docRef = await addDoc(collection(db, 'requisitions'), requisitionData);
       
-      // Redirect to the requisition details page
-      router.push(`/requisitions/${docRef.id}`);
+      // Show payment UI
+      setRequisitionId(docRef.id);
+      setShowPayment(true);
     } catch (error) {
       console.error('Error creating requisition:', error);
       setError('Failed to create requisition: ' + error.message);
-    } finally {
       setLoading(false);
     }
   };
+
+  // Add these handler functions
+const handlePaymentComplete = async (paymentIntent) => {
+  try {
+    // Update requisition status to active after payment
+    await updateDoc(doc(db, 'requisitions', requisitionId), {
+      status: 'active',
+      paymentStatus: 'paid',
+      paymentId: paymentIntent.id,
+      updatedAt: serverTimestamp()
+    });
+    
+    // Redirect to the requisition details page
+    router.push(`/requisitions/${requisitionId}`);
+  } catch (error) {
+    console.error('Error updating requisition status:', error);
+    setError('Payment successful but failed to activate job. Please contact support.');
+    setLoading(false);
+  }
+};
+
+const handlePaymentError = (error) => {
+  setError('Payment failed: ' + error.message);
+  setLoading(false);
+};
   
   return (
     <div className="min-h-screen bg-gray-50">
@@ -253,6 +285,17 @@ export default function NewRequisition() {
                   </button>
                 </div>
               </div>
+              {showPayment && requisitionId && (
+  <div className="mt-6">
+    <Elements stripe={stripePromise}>
+      <JobPostingPayment
+        requisitionId={requisitionId}
+        onPaymentComplete={handlePaymentComplete}
+        onPaymentError={handlePaymentError}
+      />
+    </Elements>
+  </div>
+)}
             </form>
           </div>
         </div>
