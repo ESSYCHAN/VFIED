@@ -10,6 +10,8 @@ import { loadStripe } from '@stripe/stripe-js';
 import JobPostingPayment from '../../components/employer/JobPostingPayment';
 import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import StripeWrapper from '../../components/stripe/StripeWrapper';
+import AIJobDescriptionGenerator from '../../components/employer/AIJobDescriptionGenerator';
+
 
 
 export default function NewRequisition() {
@@ -32,7 +34,7 @@ export default function NewRequisition() {
   // const [showPayment, setShowPayment] = useState(false);
   const [showPayment, setShowPayment] = useState(true); // Set to true for testing
   const [requisitionId, setRequisitionId] = useState('test-requisition-id'); // Dummy ID for testing
-  
+  const [showAITool, setShowAITool] = useState(false);
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({
@@ -115,6 +117,19 @@ const handlePaymentComplete = async (paymentIntent) => {
 const handlePaymentError = (error) => {
   setError('Payment failed: ' + error.message);
   setLoading(false);
+};
+
+// Add a handler to receive data from the AI tool
+const handleAIGeneratedJobDescription = (generatedData) => {
+  // Update your form with the AI-generated data
+  setFormData({
+    ...formData,
+    title: generatedData.title,
+    description: generatedData.description,
+    // Map other fields accordingly
+  });
+  
+  setShowAITool(false); // Hide the AI tool after using it
 };
   
   return (
@@ -306,6 +321,22 @@ const handlePaymentError = (error) => {
     >
       Pay & Publish Job ($50)
     </button>
+  </div>
+)}
+<button
+  type="button"
+  onClick={() => setShowAITool(!showAITool)}
+  className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+>
+  {showAITool ? 'Hide AI Assistant' : 'Use AI Job Description Assistant'}
+</button>
+
+{showAITool && (
+  <div className="mt-6">
+    <AIJobDescriptionGenerator 
+      onSave={handleAIGeneratedJobDescription}
+      initialData={formData}
+    />
   </div>
 )}
 
