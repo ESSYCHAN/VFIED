@@ -9,6 +9,9 @@ import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import JobPostingPayment from '../../components/employer/JobPostingPayment';
 import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
+import StripeWrapper from '../../components/stripe/StripeWrapper';
+
+
 export default function NewRequisition() {
   const router = useRouter();
   const { currentUser } = useAuth();
@@ -24,7 +27,7 @@ export default function NewRequisition() {
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_KEY);
+  // const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_KEY);
   // const [requisitionId, setRequisitionId] = useState(null);
   // const [showPayment, setShowPayment] = useState(false);
   const [showPayment, setShowPayment] = useState(true); // Set to true for testing
@@ -289,16 +292,34 @@ const handlePaymentError = (error) => {
                 </div>
               </div>
               {showPayment && requisitionId && (
+  <div className="mt-6 border border-gray-200 rounded-lg p-4">
+    <h3 className="text-lg font-medium mb-4">Payment Required to Publish Job</h3>
+    <p className="mb-4 text-sm text-gray-600">
+      A one-time fee of $50 is required to publish this job posting.
+    </p>
+    <button
+      onClick={() => {
+        // Mock a successful payment
+        handlePaymentComplete({ id: 'mock_payment_' + Date.now() });
+      }}
+      className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+    >
+      Pay & Publish Job ($50)
+    </button>
+  </div>
+)}
+
+{/* {showPayment && requisitionId && (
   <div className="mt-6">
-    <Elements stripe={stripePromise}>
+    <StripeWrapper>
       <JobPostingPayment
         requisitionId={requisitionId}
         onPaymentComplete={handlePaymentComplete}
         onPaymentError={handlePaymentError}
       />
-    </Elements>
+    </StripeWrapper>
   </div>
-)}
+)} */}
             </form>
           </div>
         </div>
