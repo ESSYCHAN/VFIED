@@ -1,6 +1,6 @@
 // frontend/src/pages/api/payments/send-receipt.js
 import { sendPaymentReceipt } from '../../../lib/emailService';
-import { db } from '../../../lib/firebase-admin';
+import { adminDb, adminAuth } from '../../../lib/firebase/firebaseAdmin';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -15,13 +15,13 @@ export default async function handler(req, res) {
     }
     
     // Get user data
-    const userDoc = await db.collection('users').doc(userId).get();
+    const userDoc = await adminDb.collection('users').doc(userId).get();
     if (!userDoc.exists) {
       return res.status(404).json({ error: 'User not found' });
     }
     
     // Get payment data
-    const paymentDoc = await db.collection('transactions').doc(paymentId).get();
+    const paymentDoc = await adminDb.collection('transactions').doc(paymentId).get();
     if (!paymentDoc.exists) {
       return res.status(404).json({ error: 'Payment not found' });
     }

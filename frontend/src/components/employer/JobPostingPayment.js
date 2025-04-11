@@ -1,4 +1,4 @@
-// frontend/src/components/employer/JobPostingPayment.js
+// src/components/employer/JobPostingPayment.js
 import React, { useState } from 'react';
 import { useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import { createJobPostingPayment } from '../../services/paymentService';

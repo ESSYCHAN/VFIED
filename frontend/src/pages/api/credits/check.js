@@ -1,6 +1,8 @@
 // frontend/src/pages/api/credits/check.js
 import { checkUserCredits } from '../../../lib/creditService';
-import { auth } from '../../../lib/firebase-admin';
+import { adminDb, adminAuth } from '../../../lib/firebase/firebaseAdmin';
+
+
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -13,9 +15,9 @@ export default async function handler(req, res) {
     if (!authHeader?.startsWith('Bearer ')) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
-    
+
     const token = authHeader.split('Bearer ')[1];
-    const decodedToken = await auth.verifyIdToken(token);
+    const decodedToken = await adminAuth.verifyIdToken(token);
     
     const { creditType } = req.body;
     

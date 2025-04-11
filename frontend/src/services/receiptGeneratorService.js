@@ -403,9 +403,9 @@ export async function emailReceipt(receiptId, email) {
  * @param {string} currency - Currency code
  * @returns {string} - Formatted currency string
  */
-function formatCurrency(amount, currency = 'USD') {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency
-  }).format(amount);
-}
+// function formatCurrency(amount, currency = 'USD') {
+//   return new Intl.NumberFormat('en-US', {
+//     style: 'currency',
+//     currency: currency
+//   }).format(amount);
+// }

@@ -1,5 +1,5 @@
 // frontend/src/services/paymentService.js
-import { getIdToken } from '../authService';
+import { getIdToken } from './authService';
 
 /**
  * Create a job posting payment intent
@@ -7,8 +7,11 @@ import { getIdToken } from '../authService';
  * @param {number} amount - Payment amount in cents (default: 5000)
  * @returns {Promise<Object>} Payment intent details
  */
+import { getIdToken } from './authService';
+
 export async function createJobPostingPayment(requisitionId, amount = 5000) {
   try {
+    console.log('Creating payment intent for requisition:', requisitionId);
     const token = await getIdToken();
     
     const response = await fetch('/api/payments/job-posting', {
@@ -34,6 +37,7 @@ export async function createJobPostingPayment(requisitionId, amount = 5000) {
     throw error;
   }
 }
+
 
 /**
  * Create a verification payment intent

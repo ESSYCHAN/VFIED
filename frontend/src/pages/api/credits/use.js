@@ -1,6 +1,6 @@
 // frontend/src/pages/api/credits/use.js
 import { useCredit } from '../../../lib/creditService';
-import { auth } from '../../../lib/firebase-admin';
+import { adminDb, adminAuth } from '../../../lib/firebase/firebaseAdmin';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -15,7 +15,7 @@ export default async function handler(req, res) {
     }
     
     const token = authHeader.split('Bearer ')[1];
-    const decodedToken = await auth.verifyIdToken(token);
+    const decodedToken = await adminAuth.verifyIdToken(token);
     
     const { creditType, resourceId } = req.body;
     

@@ -3,12 +3,12 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+// import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import Link from 'next/link';
 import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import JobPostingPayment from '../../components/employer/JobPostingPayment';
-
+import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 export default function NewRequisition() {
   const router = useRouter();
   const { currentUser } = useAuth();
@@ -25,8 +25,10 @@ export default function NewRequisition() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_KEY);
-  const [requisitionId, setRequisitionId] = useState(null);
-  const [showPayment, setShowPayment] = useState(false);
+  // const [requisitionId, setRequisitionId] = useState(null);
+  // const [showPayment, setShowPayment] = useState(false);
+  const [showPayment, setShowPayment] = useState(true); // Set to true for testing
+  const [requisitionId, setRequisitionId] = useState('test-requisition-id'); // Dummy ID for testing
   
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -89,13 +91,14 @@ export default function NewRequisition() {
   // Add these handler functions
 const handlePaymentComplete = async (paymentIntent) => {
   try {
+    console.log('Payment completed successfully!', paymentIntent);
     // Update requisition status to active after payment
-    await updateDoc(doc(db, 'requisitions', requisitionId), {
-      status: 'active',
-      paymentStatus: 'paid',
-      paymentId: paymentIntent.id,
-      updatedAt: serverTimestamp()
-    });
+    // await updateDoc(doc(db, 'requisitions', requisitionId), {
+    //   status: 'active',
+    //   paymentStatus: 'paid',
+    //   paymentId: paymentIntent.id,
+    //   updatedAt: serverTimestamp()
+    // });
     
     // Redirect to the requisition details page
     router.push(`/requisitions/${requisitionId}`);
