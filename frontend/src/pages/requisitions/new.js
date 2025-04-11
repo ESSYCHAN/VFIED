@@ -3,17 +3,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../lib/firebase';
-// import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import Link from 'next/link';
 import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import JobPostingPayment from '../../components/employer/JobPostingPayment';
-import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
-import StripeWrapper from '../../components/stripe/StripeWrapper';
-import AIJobDescriptionGenerator from '../../components/employer/AIJobDescriptionGenerator';
 import ExperienceCalculator from '../../components/employer/ExperienceCalculator';
-
-
+import AIJobDescriptionGenerator from '../../components/employer/AIJobDescriptionGenerator';
 
 export default function NewRequisition() {
   const router = useRouter();
@@ -23,26 +19,63 @@ export default function NewRequisition() {
     description: '',
     location: '',
     requiredSkills: '',
+    experienceRequired: '',
     minSalary: '',
     maxSalary: '',
-    type: 'full-time'
+    department: '',
+    industry: '',
+    employmentType: 'full-time'
   });
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  // const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_KEY);
-  // const [requisitionId, setRequisitionId] = useState(null);
-  // const [showPayment, setShowPayment] = useState(false);
-  const [showPayment, setShowPayment] = useState(true); // Set to true for testing
-  const [requisitionId, setRequisitionId] = useState('test-requisition-id'); // Dummy ID for testing
+  const [showPayment, setShowPayment] = useState(false);
+  const [requisitionId, setRequisitionId] = useState(null);
   const [showAITool, setShowAITool] = useState(false);
-  const [experienceRequirement, setExperienceRequirement] = useState('');
+  
+  // Parse skills from comma-separated string to array
+  const parseSkills = (skillsString) => {
+    return skillsString
+      .split(',')
+      .map(skill => skill.trim())
+      .filter(skill => skill);
+  };
+  
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({
       ...formData,
       [name]: value
     });
+  };
+  
+  // Handle analysis completion from Experience Calculator
+  const handleAnalysisComplete = (analysis) => {
+    if (analysis && analysis.yearsOfExperience) {
+      setFormData(prev => ({
+        ...prev,
+        experienceRequired: analysis.yearsOfExperience
+      }));
+      
+      // Optionally highlight suggestions to the user if there are any
+      if (analysis.suggestions && analysis.suggestions.length > 0) {
+        // You could show these in a toast notification or info panel
+        console.log('Suggestions:', analysis.suggestions);
+      }
+    }
+  };
+  
+  // Handle job description from AI generator
+  const handleAIGeneratedJobDescription = (generatedData) => {
+    setFormData({
+      ...formData,
+      title: generatedData.title || formData.title,
+      description: generatedData.summary || formData.description,
+      requiredSkills: generatedData.skillsRequired?.join(', ') || formData.requiredSkills,
+      experienceRequired: generatedData.yearsOfExperience || formData.experienceRequired,
+    });
+    
+    setShowAITool(false);
   };
   
   const handleSubmit = async (e) => {
@@ -57,24 +90,21 @@ export default function NewRequisition() {
     setError('');
     
     try {
-      // Format skills as an array
-      const skills = formData.requiredSkills
-        .split(',')
-        .map(skill => skill.trim())
-        .filter(skill => skill);
-      
-      // Create requisition document
+      // Prepare requisition data
       const requisitionData = {
         title: formData.title,
         description: formData.description,
         location: formData.location,
-        requiredSkills: skills,
+        requiredSkills: parseSkills(formData.requiredSkills),
+        experienceRequired: formData.experienceRequired,
         salary: {
           min: formData.minSalary ? parseInt(formData.minSalary) : null,
           max: formData.maxSalary ? parseInt(formData.maxSalary) : null,
           currency: 'USD'
         },
-        type: formData.type,
+        department: formData.department,
+        industry: formData.industry,
+        type: formData.employmentType,
         status: 'draft',
         employerId: currentUser.uid,
         createdAt: serverTimestamp(),
@@ -95,56 +125,24 @@ export default function NewRequisition() {
     }
   };
 
-  // Add these handler functions
-const handlePaymentComplete = async (paymentIntent) => {
-  try {
-    console.log('Payment completed successfully!', paymentIntent);
-    // Update requisition status to active after payment
-    // await updateDoc(doc(db, 'requisitions', requisitionId), {
-    //   status: 'active',
-    //   paymentStatus: 'paid',
-    //   paymentId: paymentIntent.id,
-    //   updatedAt: serverTimestamp()
-    // });
-    
-    // Redirect to the requisition details page
-    router.push(`/requisitions/${requisitionId}`);
-  } catch (error) {
-    console.error('Error updating requisition status:', error);
-    setError('Payment successful but failed to activate job. Please contact support.');
+  // Handle payment completion
+  const handlePaymentComplete = async (paymentIntent) => {
+    try {
+      console.log('Payment completed successfully!', paymentIntent);
+      // Redirect to the requisition details page
+      router.push(`/requisitions/${requisitionId}`);
+    } catch (error) {
+      console.error('Error updating requisition status:', error);
+      setError('Payment successful but failed to activate job. Please contact support.');
+      setLoading(false);
+    }
+  };
+
+  // Handle payment error
+  const handlePaymentError = (error) => {
+    setError('Payment failed: ' + error.message);
     setLoading(false);
-  }
-};
-
-const handlePaymentError = (error) => {
-  setError('Payment failed: ' + error.message);
-  setLoading(false);
-};
-
-// Add a handler to receive data from the AI tool
-const handleAIGeneratedJobDescription = (generatedData) => {
-  // Update your form with the AI-generated data
-  setFormData({
-    ...formData,
-    title: generatedData.title,
-    description: generatedData.description,
-    // Map other fields accordingly
-  });
-  
-  setShowAITool(false); // Hide the AI tool after using it
-};
-
-const handleAnalysisComplete = (analysis) => {
-  if (analysis && analysis.yearsOfExperience) {
-    setExperienceRequirement(analysis.yearsOfExperience);
-    
-    // Optionally update your form data
-    setFormData(prev => ({
-      ...prev,
-      experienceRequired: analysis.yearsOfExperience
-    }));
-  }
-};
+  };
   
   return (
     <div className="min-h-screen bg-gray-50">
@@ -164,10 +162,29 @@ const handleAnalysisComplete = (analysis) => {
               <p className="mt-1 text-sm text-gray-600">
                 Provide details about the job position you're looking to fill.
               </p>
+              
+              <div className="mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowAITool(!showAITool)}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  {showAITool ? 'Hide AI Assistant' : 'Use AI Job Description Assistant'}
+                </button>
+              </div>
             </div>
           </div>
           
           <div className="mt-5 md:mt-0 md:col-span-2">
+            {showAITool && (
+              <div className="mb-6">
+                <AIJobDescriptionGenerator 
+                  onSave={handleAIGeneratedJobDescription}
+                  initialData={formData}
+                />
+              </div>
+            )}
+            
             <form onSubmit={handleSubmit}>
               <div className="shadow sm:rounded-md sm:overflow-hidden">
                 <div className="px-4 py-5 bg-white space-y-6 sm:p-6">
@@ -193,6 +210,36 @@ const handleAnalysisComplete = (analysis) => {
                       onChange={handleChange}
                       required
                       className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="department" className="block text-sm font-medium text-gray-700">
+                      Department
+                    </label>
+                    <input
+                      type="text"
+                      name="department"
+                      id="department"
+                      value={formData.department}
+                      onChange={handleChange}
+                      className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                      placeholder="e.g., Engineering, Marketing, HR"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="industry" className="block text-sm font-medium text-gray-700">
+                      Industry
+                    </label>
+                    <input
+                      type="text"
+                      name="industry"
+                      id="industry"
+                      value={formData.industry}
+                      onChange={handleChange}
+                      className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                      placeholder="e.g., Technology, Healthcare, Finance"
                     />
                   </div>
                   
@@ -241,31 +288,39 @@ const handleAnalysisComplete = (analysis) => {
                       placeholder="e.g., JavaScript, React, Node.js"
                     />
                   </div>
-                  {/* Add the Experience Calculator here */}
-<ExperienceCalculator
-  jobTitle={formData.title}
-  responsibilities={formData.description}
-  requiredSkills={formData.requiredSkills}
-  seniorityLevel={formData.employmentType}
-  onAnalysisComplete={handleAnalysisComplete}
-/>
-
-{/* If you have an experience field, it will be auto-populated */}
-<div className="mb-4">
-  <label htmlFor="experienceRequired" className="block text-sm font-medium text-gray-700">
-    Experience Required
-  </label>
-  <input
-    type="text"
-    id="experienceRequired"
-    name="experienceRequired"
-    value={formData.experienceRequired || experienceRequirement}
-    onChange={handleChange}
-    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-    placeholder={experienceRequirement || "e.g., 3-5 years"}
-  />
-</div>
                   
+                  {/* Experience Calculator Section */}
+                  <div className="border-t border-gray-200 pt-4">
+                    <h3 className="text-lg font-medium leading-6 text-gray-900">Experience Requirements</h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Let AI analyze your job requirements and suggest appropriate experience levels.
+                    </p>
+                    
+                    <ExperienceCalculator
+                      jobTitle={formData.title}
+                      responsibilities={formData.description}
+                      requiredSkills={formData.requiredSkills}
+                      seniorityLevel={formData.employmentType}
+                      department={formData.department}
+                      industry={formData.industry}
+                      onAnalysisComplete={handleAnalysisComplete}
+                    />
+                    
+                    <div className="mt-4">
+                      <label htmlFor="experienceRequired" className="block text-sm font-medium text-gray-700">
+                        Experience Required
+                      </label>
+                      <input
+                        type="text"
+                        id="experienceRequired"
+                        name="experienceRequired"
+                        value={formData.experienceRequired}
+                        onChange={handleChange}
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        placeholder="e.g., 3-5 years"
+                      />
+                    </div>
+                  </div>
                   
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                     <div>
@@ -310,13 +365,13 @@ const handleAnalysisComplete = (analysis) => {
                   </div>
                   
                   <div>
-                    <label htmlFor="type" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="employmentType" className="block text-sm font-medium text-gray-700">
                       Employment Type
                     </label>
                     <select
-                      id="type"
-                      name="type"
-                      value={formData.type}
+                      id="employmentType"
+                      name="employmentType"
+                      value={formData.employmentType}
                       onChange={handleChange}
                       className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     >
@@ -345,52 +400,19 @@ const handleAnalysisComplete = (analysis) => {
                   </button>
                 </div>
               </div>
-              {showPayment && requisitionId && (
-  <div className="mt-6 border border-gray-200 rounded-lg p-4">
-    <h3 className="text-lg font-medium mb-4">Payment Required to Publish Job</h3>
-    <p className="mb-4 text-sm text-gray-600">
-      A one-time fee of $50 is required to publish this job posting.
-    </p>
-    <button
-      onClick={() => {
-        // Mock a successful payment
-        handlePaymentComplete({ id: 'mock_payment_' + Date.now() });
-      }}
-      className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
-    >
-      Pay & Publish Job ($50)
-    </button>
-  </div>
-)}
-<button
-  type="button"
-  onClick={() => setShowAITool(!showAITool)}
-  className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
->
-  {showAITool ? 'Hide AI Assistant' : 'Use AI Job Description Assistant'}
-</button>
-
-{showAITool && (
-  <div className="mt-6">
-    <AIJobDescriptionGenerator 
-      onSave={handleAIGeneratedJobDescription}
-      initialData={formData}
-    />
-  </div>
-)}
-
-{/* {showPayment && requisitionId && (
-  <div className="mt-6">
-    <StripeWrapper>
-      <JobPostingPayment
-        requisitionId={requisitionId}
-        onPaymentComplete={handlePaymentComplete}
-        onPaymentError={handlePaymentError}
-      />
-    </StripeWrapper>
-  </div>
-)} */}
             </form>
+            
+            {showPayment && requisitionId && (
+              <div className="mt-6">
+                <Elements stripe={loadStripe(process.env.NEXT_PUBLIC_STRIPE_KEY)}>
+                  <JobPostingPayment
+                    requisitionId={requisitionId}
+                    onPaymentComplete={handlePaymentComplete}
+                    onPaymentError={handlePaymentError}
+                  />
+                </Elements>
+              </div>
+            )}
           </div>
         </div>
       </main>
