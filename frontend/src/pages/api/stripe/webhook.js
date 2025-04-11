@@ -1,30 +1,26 @@
-// src/pages/api/stripe/webhook.js
+// pages/api/stripe/webhook.js
 import Stripe from 'stripe';
 import { buffer } from 'micro';
-import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { 
+  doc, 
+  getDoc, 
+  updateDoc, 
+  serverTimestamp, 
+  collection, 
+  addDoc, 
+  setDoc, 
+  increment,
+  runTransaction
+} from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
+import { sendPaymentReceipt } from '../../../lib/emailService';
+import { generateReceipt } from '../../../services/receiptGeneratorService';
+import { calculateTransactionFee } from '../../../services/feeCalculationService';
 
-// Initialize Stripe with your secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-async function createTransactionRecord(db, session, type) {
-  try {
-    await db.collection('transactions').add({
-      type: type,
-      amount: session.amount_total,
-      status: 'completed',
-      paymentId: session.payment_intent || session.id,
-      userId: session.metadata.userId || session.customer,
-      metadata: session.metadata,
-      timestamp: serverTimestamp()
-    });
-  } catch (error) {
-    console.error('Error creating transaction record:', error);
-  }
-}
-
-// Disable body parsing, we need the raw body for webhook verification
+// Disable body parser to get raw request body
 export const config = {
   api: {
     bodyParser: false,
@@ -32,212 +28,540 @@ export const config = {
 };
 
 export default async function handler(req, res) {
-  // Only allow POST method
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    return res.status(405).end('Method not allowed');
+    return res.status(405).end('Method Not Allowed');
   }
-  
+
   try {
-    // Get the raw body as a buffer
+    // Get the raw request body for signature verification
     const rawBody = await buffer(req);
-    
-    // Get the Stripe signature from headers
     const signature = req.headers['stripe-signature'];
-    
-    // Verify the webhook
+
+    // Verify webhook signature
     let event;
     try {
-      event = stripe.webhooks.constructEvent(
-        rawBody,
-        signature,
-        webhookSecret
-      );
+      event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
     } catch (err) {
       console.error(`Webhook signature verification failed: ${err.message}`);
       return res.status(400).send(`Webhook Error: ${err.message}`);
     }
-    
-    // Process the event based on its type
-    switch (event.type) {
-      // Handle successful payments
-      case 'checkout.session.completed': {
-        const session = event.data.object;
-        
-        // Update payment record in Firestore
-        const paymentRef = doc(db, 'payments', session.id);
-        const paymentDoc = await getDoc(paymentRef);
-        
-        if (paymentDoc.exists()) {
-          await updateDoc(paymentRef, {
-            status: 'completed',
-            completedAt: serverTimestamp(),
-            providerTransactionId: session.payment_intent || session.id
-          });
-          
-          // If this is a job posting payment, update the requisition
-          if (session.metadata.type === 'job_posting' && session.metadata.jobId) {
-            const requisitionRef = doc(db, 'requisitions', session.metadata.jobId);
-            const requisitionDoc = await getDoc(requisitionRef);
-            
-            if (requisitionDoc.exists()) {
-              await updateDoc(requisitionRef, {
-                'payment.status': 'completed',
-                'payment.completedAt': serverTimestamp(),
-                'paid': true,
-                'status': 'active', // Automatically activate the job posting
-                updatedAt: serverTimestamp()
-              });
-            }
-          }
-          
-          // If this is a credential verification payment, update the credential
-          if (session.metadata.type === 'verification' && session.metadata.credentialId) {
-            const credentialRef = doc(db, 'credentials', session.metadata.credentialId);
-            const credentialDoc = await getDoc(credentialRef);
-            
-            if (credentialDoc.exists()) {
-              await updateDoc(credentialRef, {
-                'payment.status': 'completed',
-                'payment.completedAt': serverTimestamp(),
-                'paid': true,
-                updatedAt: serverTimestamp()
-              });
-            }
-          }
-          
-          // If this is a subscription payment, create or update subscription record
-          if (session.metadata.type === 'subscription' && session.subscription) {
-            // Retrieve the subscription details from Stripe
-            const subscription = await stripe.subscriptions.retrieve(session.subscription);
-            
-            // Update the subscription in Firestore
-            const subscriptionRef = doc(db, 'subscriptions', subscription.id);
-            await updateDoc(subscriptionRef, {
-              status: subscription.status,
-              currentPeriodStart: new Date(subscription.current_period_start * 1000),
-              currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-              cancelAtPeriodEnd: subscription.cancel_at_period_end,
-              updatedAt: serverTimestamp()
-            });
-          }
-        }
-        
-        break;
-      }
-      
-      // Handle failed payments
-      case 'checkout.session.async_payment_failed': {
-        const session = event.data.object;
-        
-        // Update payment record in Firestore
-        const paymentRef = doc(db, 'payments', session.id);
-        const paymentDoc = await getDoc(paymentRef);
-        
-        if (paymentDoc.exists()) {
-          await updateDoc(paymentRef, {
-            status: 'failed',
-            updatedAt: serverTimestamp()
-          });
-          
-          // If this is a job posting payment, update the requisition
-          if (session.metadata.type === 'job_posting' && session.metadata.jobId) {
-            const requisitionRef = doc(db, 'requisitions', session.metadata.jobId);
-            await updateDoc(requisitionRef, {
-              'payment.status': 'failed',
-              updatedAt: serverTimestamp()
-            });
-          }
-        }
-        
-        break;
-      }
 
-      // Then in your checkout.session.completed case
-if (session.metadata && session.metadata.paymentType) {
-  switch(session.metadata.paymentType) {
-    case 'job_posting_fee': {
-      // Create transaction record
-      await createTransactionRecord(db, session, 'job_posting_fee');
-      
-      // Update requisition status if applicable
-      if (session.metadata.requisitionId) {
-        const requisitionRef = doc(db, 'requisitions', session.metadata.requisitionId);
-        await updateDoc(requisitionRef, {
-          status: 'active',
-          paymentStatus: 'paid',
-          updatedAt: serverTimestamp()
-        });
-      }
-      break;
-    }
-    
-    case 'verification_fee': {
-      await createTransactionRecord(db, session, 'verification_fee');
-      // Handle credential verification updates
-      break;
-    }
-    
-    case 'hire_success_fee': {
-      await createTransactionRecord(db, session, 'hire_success_fee');
-      // Handle hire record updates
-      break;
-    }
-  }
-}
-      
-      // Handle subscription events
-      case 'customer.subscription.created':
-      case 'customer.subscription.updated': {
-        const subscription = event.data.object;
-        
-        // Update subscription in Firestore
-        const subscriptionRef = doc(db, 'subscriptions', subscription.id);
-        const subscriptionDoc = await getDoc(subscriptionRef);
-        
-        const subscriptionData = {
-          status: subscription.status,
-          currentPeriodStart: new Date(subscription.current_period_start * 1000),
-          currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-          cancelAtPeriodEnd: subscription.cancel_at_period_end,
-          updatedAt: serverTimestamp()
-        };
-        
-        if (subscriptionDoc.exists()) {
-          await updateDoc(subscriptionRef, subscriptionData);
-        }
-        
+    // Process based on event type
+    switch (event.type) {
+      case 'payment_intent.succeeded':
+        await handlePaymentIntentSucceeded(event.data.object);
         break;
-      }
-      
-      // Handle subscription cancellations
-      case 'customer.subscription.deleted': {
-        const subscription = event.data.object;
         
-        // Update subscription in Firestore
-        const subscriptionRef = doc(db, 'subscriptions', subscription.id);
-        const subscriptionDoc = await getDoc(subscriptionRef);
-        
-        if (subscriptionDoc.exists()) {
-          await updateDoc(subscriptionRef, {
-            status: 'canceled',
-            canceledAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
-          });
-        }
-        
+      case 'payment_intent.payment_failed':
+        await handlePaymentIntentFailed(event.data.object);
         break;
-      }
-      
-      // Handle other events
+        
+      case 'checkout.session.completed':
+        await handleCheckoutSessionCompleted(event.data.object);
+        break;
+        
+      case 'subscription.created':
+        await handleSubscriptionCreated(event.data.object);
+        break;
+        
+      case 'subscription.updated':
+        await handleSubscriptionUpdated(event.data.object);
+        break;
+        
+      case 'subscription.deleted':
+        await handleSubscriptionDeleted(event.data.object);
+        break;
+        
       default:
         console.log(`Unhandled event type: ${event.type}`);
     }
-    
+
     // Return success response
     res.status(200).json({ received: true });
   } catch (error) {
-    console.error('Webhook error:', error);
-    res.status(500).json({ error: 'Webhook processing failed' });
+    console.error('Webhook handler error:', error);
+    res.status(500).json({ error: 'Webhook handler failed' });
   }
+}
+
+/**
+ * Handle successful payment intent
+ */
+async function handlePaymentIntentSucceeded(paymentIntent) {
+  try {
+    const { id, metadata, amount, currency } = paymentIntent;
+    const { type, userId, employerId, requisitionId, credentialId, candidateId } = metadata;
+    
+    // Get the payment intent document from Firestore
+    const paymentIntentRef = doc(db, 'payment_intents', id);
+    const paymentIntentDoc = await getDoc(paymentIntentRef);
+    
+    // If already processed, avoid duplicate processing
+    if (paymentIntentDoc.exists() && paymentIntentDoc.data().status === 'succeeded') {
+      console.log(`Payment ${id} already processed`);
+      return;
+    }
+    
+    // Calculate transaction fee
+    const fee = await calculateTransactionFee(type, amount, userId || employerId);
+    const netAmount = amount - fee;
+    
+    // Run as a transaction to ensure data consistency
+    await runTransaction(db, async (transaction) => {
+      // Update payment intent status
+      transaction.set(paymentIntentRef, {
+        status: 'succeeded',
+        processedAt: serverTimestamp(),
+        fee,
+        netAmount
+      }, { merge: true });
+      
+      // Create transaction record
+      const transactionRef = doc(collection(db, 'transactions'));
+      transaction.set(transactionRef, {
+        paymentIntentId: id,
+        userId: userId || employerId,
+        amount,
+        fee,
+        netAmount,
+        currency,
+        type,
+        status: 'completed',
+        timestamp: serverTimestamp(),
+        metadata: {
+          requisitionId,
+          credentialId,
+          candidateId
+        }
+      });
+      
+      // Process based on payment type
+      switch (type) {
+        case 'job_posting_fee':
+          await processJobPostingPayment(transaction, requisitionId, employerId);
+          break;
+          
+        case 'verification_fee':
+          await processVerificationPayment(transaction, credentialId, userId);
+          break;
+          
+        case 'hire_success_fee':
+          await processHireSuccessFee(transaction, requisitionId, employerId, candidateId);
+          break;
+      }
+      
+      // Update user's payment history
+      const userRef = doc(db, 'users', userId || employerId);
+      transaction.update(userRef, {
+        paymentTotal: increment(amount),
+        lastPayment: serverTimestamp(),
+        paymentCount: increment(1)
+      });
+    });
+    
+    // Generate receipt
+    const userRef = doc(db, 'users', userId || employerId);
+    const userDoc = await getDoc(userRef);
+    const user = userDoc.data();
+    
+    // Generate receipt PDF
+    const receiptData = {
+      id,
+      type,
+      amount,
+      fee,
+      netAmount,
+      currency,
+      timestamp: new Date(),
+      user: {
+        name: user.displayName || user.name || 'VFied User',
+        email: user.email
+      }
+    };
+    
+    const receiptUrl = await generateReceipt(receiptData);
+    
+    // Update payment with receipt URL
+    await updateDoc(paymentIntentRef, {
+      receiptUrl
+    });
+    
+    // Send receipt email
+    if (user.email) {
+      await sendPaymentReceipt(user, {
+        id,
+        type,
+        amount,
+        timestamp: new Date(),
+        receiptUrl
+      });
+    }
+    
+    console.log(`Successfully processed payment ${id} of type ${type}`);
+  } catch (error) {
+    console.error('Error handling payment_intent.succeeded:', error);
+    throw error;
+  }
+}
+
+/**
+ * Handle failed payment intent
+ */
+async function handlePaymentIntentFailed(paymentIntent) {
+  try {
+    const { id, metadata, last_payment_error } = paymentIntent;
+    const { type, userId, employerId, requisitionId, credentialId } = metadata;
+    
+    // Update payment intent status
+    const paymentIntentRef = doc(db, 'payment_intents', id);
+    await updateDoc(paymentIntentRef, {
+      status: 'failed',
+      error: last_payment_error?.message || 'Payment failed',
+      processedAt: serverTimestamp()
+    });
+    
+    // Create failed transaction record
+    await addDoc(collection(db, 'transactions'), {
+      paymentIntentId: id,
+      userId: userId || employerId,
+      type,
+      status: 'failed',
+      error: last_payment_error?.message || 'Payment failed',
+      timestamp: serverTimestamp(),
+      metadata: {
+        requisitionId,
+        credentialId
+      }
+    });
+    
+    // Update status based on payment type
+    switch (type) {
+      case 'job_posting_fee':
+        if (requisitionId) {
+          const requisitionRef = doc(db, 'requisitions', requisitionId);
+          await updateDoc(requisitionRef, {
+            paymentStatus: 'failed',
+            updatedAt: serverTimestamp()
+          });
+        }
+        break;
+        
+      case 'verification_fee':
+        if (credentialId) {
+          const credentialRef = doc(db, 'credentials', credentialId);
+          await updateDoc(credentialRef, {
+            paymentStatus: 'failed',
+            updatedAt: serverTimestamp()
+          });
+        }
+        break;
+    }
+    
+    console.log(`Marked payment ${id} as failed`);
+  } catch (error) {
+    console.error('Error handling payment_intent.payment_failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Handle completed checkout session
+ */
+async function handleCheckoutSessionCompleted(session) {
+  try {
+    const { customer, metadata, subscription, amount_total } = session;
+    const { userId, plan, planType } = metadata;
+    
+    if (subscription) {
+      // This is a subscription, will be handled by subscription events
+      console.log(`Checkout completed for subscription: ${subscription}`);
+      return;
+    }
+    
+    if (!userId) {
+      console.error('No userId in session metadata');
+      return;
+    }
+    
+    // For one-time payments
+    await addDoc(collection(db, 'transactions'), {
+      userId,
+      amount: amount_total,
+      status: 'completed',
+      type: 'one_time_payment',
+      timestamp: serverTimestamp(),
+      metadata: {
+        checkoutSessionId: session.id,
+        customerId: customer
+      }
+    });
+    
+    console.log(`Processed one-time payment for user ${userId}`);
+  } catch (error) {
+    console.error('Error handling checkout.session.completed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Handle subscription creation
+ */
+async function handleSubscriptionCreated(subscription) {
+  try {
+    const { id, customer, metadata, status, items, current_period_end } = subscription;
+    const { userId } = metadata;
+    
+    if (!userId) {
+      console.error('No userId in subscription metadata');
+      return;
+    }
+    
+    // Get the plan details
+    const plan = items.data[0].price.product;
+    const planId = items.data[0].price.id;
+    
+    // Get plan details from Stripe
+    const product = await stripe.products.retrieve(plan);
+    const planName = product.name;
+    const planType = product.metadata.type || 'standard';
+    
+    // Update user's subscription
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      'subscription.id': id,
+      'subscription.status': status,
+      'subscription.plan': planType,
+      'subscription.planName': planName,
+      'subscription.priceId': planId,
+      'subscription.currentPeriodEnd': new Date(current_period_end * 1000),
+      'subscription.updatedAt': serverTimestamp()
+    });
+    
+    // Create subscription record
+    await setDoc(doc(db, 'subscriptions', id), {
+      userId,
+      status,
+      planType,
+      planName,
+      priceId: planId,
+      customerId: customer,
+      currentPeriodEnd: new Date(current_period_end * 1000),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    
+    console.log(`Subscription ${id} created for user ${userId}`);
+  } catch (error) {
+    console.error('Error handling subscription.created:', error);
+    throw error;
+  }
+}
+
+/**
+ * Handle subscription updates
+ */
+async function handleSubscriptionUpdated(subscription) {
+  try {
+    const { id, status, current_period_end, items } = subscription;
+    
+    // Get subscription from Firestore
+    const subscriptionRef = doc(db, 'subscriptions', id);
+    const subscriptionDoc = await getDoc(subscriptionRef);
+    
+    if (!subscriptionDoc.exists()) {
+      console.error(`Subscription ${id} not found in Firestore`);
+      return;
+    }
+    
+    const { userId } = subscriptionDoc.data();
+    
+    // Get the plan details if available
+    let planName = subscriptionDoc.data().planName;
+    let planType = subscriptionDoc.data().planType;
+    
+    if (items?.data[0]?.price?.product) {
+      const plan = items.data[0].price.product;
+      const product = await stripe.products.retrieve(plan);
+      planName = product.name;
+      planType = product.metadata.type || planType;
+    }
+    
+    // Update subscription record
+    await updateDoc(subscriptionRef, {
+      status,
+      currentPeriodEnd: new Date(current_period_end * 1000),
+      updatedAt: serverTimestamp()
+    });
+    
+    // Update user's subscription
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      'subscription.status': status,
+      'subscription.currentPeriodEnd': new Date(current_period_end * 1000),
+      'subscription.updatedAt': serverTimestamp()
+    });
+    
+    console.log(`Subscription ${id} updated for user ${userId}`);
+  } catch (error) {
+    console.error('Error handling subscription.updated:', error);
+    throw error;
+  }
+}
+
+/**
+ * Handle subscription deletion/cancellation
+ */
+async function handleSubscriptionDeleted(subscription) {
+  try {
+    const { id } = subscription;
+    
+    // Get subscription from Firestore
+    const subscriptionRef = doc(db, 'subscriptions', id);
+    const subscriptionDoc = await getDoc(subscriptionRef);
+    
+    if (!subscriptionDoc.exists()) {
+      console.error(`Subscription ${id} not found in Firestore`);
+      return;
+    }
+    
+    const { userId } = subscriptionDoc.data();
+    
+    // Update subscription record
+    await updateDoc(subscriptionRef, {
+      status: 'canceled',
+      updatedAt: serverTimestamp(),
+      canceledAt: serverTimestamp()
+    });
+    
+    // Update user's subscription
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      'subscription.status': 'canceled',
+      'subscription.updatedAt': serverTimestamp(),
+      'subscription.canceledAt': serverTimestamp()
+    });
+    
+    console.log(`Subscription ${id} canceled for user ${userId}`);
+  } catch (error) {
+    console.error('Error handling subscription.deleted:', error);
+    throw error;
+  }
+}
+
+/**
+ * Process job posting payment
+ */
+async function processJobPostingPayment(transaction, requisitionId, employerId) {
+  if (!requisitionId) return;
+  
+  const requisitionRef = doc(db, 'requisitions', requisitionId);
+  const requisitionDoc = await getDoc(requisitionRef);
+  
+  if (!requisitionDoc.exists()) {
+    console.error(`Requisition ${requisitionId} not found`);
+    return;
+  }
+  
+  // Update requisition status
+  transaction.update(requisitionRef, {
+    status: 'active',
+    paymentStatus: 'completed',
+    activatedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+  });
+  
+  // Update employer's job posting count
+  const employerRef = doc(db, 'users', employerId);
+  transaction.update(employerRef, {
+    'stats.jobPostings': increment(1),
+    updatedAt: serverTimestamp()
+  });
+}
+
+/**
+ * Process verification payment
+ */
+async function processVerificationPayment(transaction, credentialId, userId) {
+  if (!credentialId) return;
+  
+  const credentialRef = doc(db, 'credentials', credentialId);
+  const credentialDoc = await getDoc(credentialRef);
+  
+  if (!credentialDoc.exists()) {
+    console.error(`Credential ${credentialId} not found`);
+    return;
+  }
+  
+  // Update credential payment status
+  transaction.update(credentialRef, {
+    paymentStatus: 'completed',
+    verificationStatus: 'pending',
+    updatedAt: serverTimestamp(),
+    dateSubmitted: serverTimestamp()
+  });
+  
+  // Create verification request
+  const verificationRequestRef = doc(collection(db, 'verificationRequests'));
+  transaction.set(verificationRequestRef, {
+    credentialId,
+    userId,
+    credentialType: credentialDoc.data().type,
+    credentialTitle: credentialDoc.data().title,
+    credentialIssuer: credentialDoc.data().issuer,
+    submissionDate: serverTimestamp(),
+    status: 'pending',
+    documentUrl: credentialDoc.data().documentUrl,
+    timeline: [{
+      status: 'submitted',
+      date: serverTimestamp(),
+      note: 'Verification payment received, request submitted'
+    }]
+  });
+  
+  // Update the credential with the verification request ID
+  transaction.update(credentialRef, {
+    verificationRequestId: verificationRequestRef.id
+  });
+}
+
+/**
+ * Process hire success fee
+ */
+async function processHireSuccessFee(transaction, requisitionId, employerId, candidateId) {
+  if (!requisitionId || !candidateId) return;
+  
+  // Create hire record
+  const hireRef = doc(collection(db, 'hires'));
+  transaction.set(hireRef, {
+    requisitionId,
+    employerId,
+    candidateId,
+    status: 'completed',
+    paymentStatus: 'completed',
+    hireDate: serverTimestamp()
+  });
+  
+  // Update requisition status
+  const requisitionRef = doc(db, 'requisitions', requisitionId);
+  transaction.update(requisitionRef, {
+    status: 'filled',
+    filledBy: candidateId,
+    filledAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
+  
+  // Update candidate status
+  const candidateRef = doc(db, 'users', candidateId);
+  transaction.update(candidateRef, {
+    'stats.hires': increment(1),
+    updatedAt: serverTimestamp()
+  });
+  
+  // Update employer stats
+  const employerRef = doc(db, 'users', employerId);
+  transaction.update(employerRef, {
+    'stats.hires': increment(1),
+    updatedAt: serverTimestamp()
+  });
 }
