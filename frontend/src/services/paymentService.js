@@ -7,7 +7,7 @@ import { getIdToken } from './authService';
  * @param {number} amount - Payment amount in cents (default: 5000)
  * @returns {Promise<Object>} Payment intent details
  */
-import { getIdToken } from './authService';
+// import { getIdToken } from './authService';
 
 export async function createJobPostingPayment(requisitionId, amount = 5000) {
   try {
