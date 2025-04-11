@@ -1,6 +1,6 @@
 // server/services/aiJobDescriptionService.js
 const { createAnthropicClient } = require('@anthropic-ai/sdk');
-const { db } = require('../firebase/admin');
+const { db, admin } = require('../firebase/admin');
 
 // Initialize the Anthropic client
 const anthropic = createAnthropicClient({
@@ -44,7 +44,8 @@ For all issues, provide specific, actionable recommendations to make requirement
 Use your knowledge of industry standards to recommend appropriate experience levels.
 
 Consider the realities of the job market from both employer and candidate perspectives.
-Always return well-formed JSON that can be parsed by JavaScript's JSON.parse() function.`,
+IMPORTANT: Return ONLY valid JSON with no additional text, explanations, or markdown formatting.
+Your response MUST be a single JSON object that can be parsed by JavaScript's JSON.parse().`,
       messages: [
         {
           role: "user",
@@ -64,13 +65,15 @@ Please provide:
 4. Specific suggestions to make requirements more balanced
 5. Explanation of your reasoning
 
-Format your response as JSON with the following keys:
-- yearsOfExperience (string): The suggested years of experience
-- isReasonable (boolean): Whether the overall requirements are reasonable
-- unrealisticRequirements (array): List of any unrealistic requirements
-- suggestions (array): Specific suggestions to improve the description
-- reasoning (string): Explanation of your analysis
-- healthScore (number): A score from 0-100 indicating how realistic the requirements are`
+Return ONLY a JSON object with the following structure (and no other text):
+{
+  "yearsOfExperience": "3-5 years",
+  "isReasonable": true,
+  "unrealisticRequirements": ["Requirement 1", "Requirement 2"],
+  "suggestions": ["Suggestion 1", "Suggestion 2"],
+  "reasoning": "Reasoning for the analysis...",
+  "healthScore": 85
+}`
         }
       ]
     });
@@ -78,20 +81,36 @@ Format your response as JSON with the following keys:
     // Parse the response
     try {
       const responseText = response.content[0].text;
-      const analysisData = JSON.parse(responseText);
+      // Remove any markdown code blocks if present
+      const jsonText = responseText.replace(/```json\n|\n```|```/g, '');
+      const analysisData = JSON.parse(jsonText);
       
       // Log the analysis for future model improvements
-      await db.collection('job_requirement_analyses').add({
-        jobData,
-        analysis: analysisData,
-        timestamp: new Date()
-      });
+      try {
+        await db.collection('job_requirement_analyses').add({
+          jobData,
+          analysis: analysisData,
+          timestamp: admin.firestore.FieldValue.serverTimestamp()
+        });
+      } catch (logError) {
+        console.warn('Failed to log analysis to Firestore:', logError);
+        // Continue even if logging fails
+      }
       
       return analysisData;
     } catch (parseError) {
       console.error('Error parsing AI response:', parseError);
       console.log('Raw response:', response.content[0].text);
-      throw new Error('Failed to parse AI response');
+      
+      // Return a default response if parsing fails
+      return {
+        yearsOfExperience: "3-5 years",
+        isReasonable: true,
+        unrealisticRequirements: [],
+        suggestions: ["Consider reviewing the requirements manually."],
+        reasoning: "Unable to parse AI response into JSON format. This default response is provided as a fallback.",
+        healthScore: 70
+      };
     }
   } catch (error) {
     console.error('AI job analysis error:', error);
@@ -122,7 +141,14 @@ async function generateJobDescription(jobData) {
       : requiredSkills;
     
     // Get suggested experience levels first
-    const analysis = await analyzeJobRequirements(jobData);
+    let experienceLevel = "3-5 years"; // Default
+    try {
+      const analysis = await analyzeJobRequirements(jobData);
+      experienceLevel = analysis.yearsOfExperience || experienceLevel;
+    } catch (analysisError) {
+      console.warn('Error getting experience analysis, using default:', analysisError);
+      // Continue with default experience level
+    }
     
     // Now generate the full job description
     const response = await anthropic.messages.create({
@@ -132,7 +158,8 @@ async function generateJobDescription(jobData) {
 Create professional job descriptions that accurately reflect role requirements without being unrealistic.
 Focus on being specific, clear, and concise while using inclusive language.
 Format job descriptions professionally with proper sections and bullet points.
-Always return well-formed JSON that can be parsed by JavaScript's JSON.parse() function.`,
+IMPORTANT: Return ONLY valid JSON with no additional text, explanations, or markdown formatting.
+Your response MUST be a single JSON object that can be parsed by JavaScript's JSON.parse().`,
       messages: [
         {
           role: "user",
@@ -142,22 +169,24 @@ Job Title: ${jobTitle}
 ${department ? `Department: ${department}` : ''}
 ${industry ? `Industry: ${industry}` : ''}
 Seniority Level: ${seniorityLevel || 'Not specified'}
-Suggested Experience: ${analysis.yearsOfExperience || 'Not specified'}
+Suggested Experience: ${experienceLevel}
 Key Responsibilities: ${responsibilities || 'Not provided'}
 Required Skills: ${skills || 'Not provided'}
 ${companyInfo ? `Company Information: ${JSON.stringify(companyInfo)}` : ''}
 
-Format your response as JSON with the following sections:
-- title (string): The formatted job title
-- summary (string): A brief overview of the role
-- responsibilities (array): Detailed bullet points of job responsibilities
-- requiredQualifications (array): Must-have qualifications including education and experience
-- preferredQualifications (array): Nice-to-have qualifications
-- benefits (array): Company benefits if provided in company info
-- yearsOfExperience (string): The experience requirement
-- educationRequirement (string): Suggested education level
-- skillsRequired (array): Organized list of required skills
-- salary (object): Suggested salary range with min and max properties if applicable`
+Return ONLY a JSON object with the following structure (and no other text):
+{
+  "title": "Full Job Title",
+  "summary": "A brief overview of the role",
+  "responsibilities": ["Responsibility 1", "Responsibility 2"],
+  "requiredQualifications": ["Qualification 1", "Qualification 2"],
+  "preferredQualifications": ["Preferred Qualification 1", "Preferred Qualification 2"],
+  "benefits": ["Benefit 1", "Benefit 2"],
+  "yearsOfExperience": "3-5 years",
+  "educationRequirement": "Bachelor's degree or equivalent experience",
+  "skillsRequired": ["Skill 1", "Skill 2"],
+  "salary": {"min": 70000, "max": 90000}
+}`
         }
       ]
     });
@@ -165,22 +194,17 @@ Format your response as JSON with the following sections:
     // Parse the response
     try {
       const responseText = response.content[0].text;
-      const jobDescriptionData = JSON.parse(responseText);
+      // Remove any markdown code blocks if present
+      const jsonText = responseText.replace(/```json\n|\n```|```/g, '');
+      const generatedData = JSON.parse(jsonText);
       
-      // Combine with the analysis data
-      return {
-        ...jobDescriptionData,
-        analysis: {
-          isReasonable: analysis.isReasonable,
-          unrealisticRequirements: analysis.unrealisticRequirements,
-          suggestions: analysis.suggestions,
-          healthScore: analysis.healthScore
-        }
-      };
+      return generatedData;
     } catch (parseError) {
-      console.error('Error parsing AI response:', parseError);
+      console.error('Error parsing AI response for job description:', parseError);
       console.log('Raw response:', response.content[0].text);
-      throw new Error('Failed to parse AI response');
+      
+      // Return error message
+      throw new Error('Failed to generate job description. Please try again.');
     }
   } catch (error) {
     console.error('AI job description generation error:', error);
@@ -203,8 +227,8 @@ async function saveJobTemplate(template, name, userId, isPublic = false) {
       template,
       createdBy: userId,
       isPublic,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
     
     return templateRef.id;
@@ -214,8 +238,60 @@ async function saveJobTemplate(template, name, userId, isPublic = false) {
   }
 }
 
+/**
+ * Get job description templates
+ * @param {string} userId - User ID
+ * @param {boolean} includePublic - Whether to include public templates
+ * @returns {Promise<Array>} - Array of templates
+ */
+async function getJobTemplates(userId, includePublic = true) {
+  try {
+    // Get user's templates
+    const userTemplatesQuery = await db.collection('job_description_templates')
+      .where('createdBy', '==', userId)
+      .orderBy('updatedAt', 'desc')
+      .get();
+    
+    const templates = [];
+    userTemplatesQuery.forEach(doc => {
+      templates.push({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate() || null,
+        updatedAt: doc.data().updatedAt?.toDate() || null
+      });
+    });
+    
+    // Get public templates if requested
+    if (includePublic) {
+      const publicTemplatesQuery = await db.collection('job_description_templates')
+        .where('isPublic', '==', true)
+        .where('createdBy', '!=', userId) // Exclude user's own templates
+        .orderBy('createdBy') // Required for the inequality filter
+        .orderBy('updatedAt', 'desc')
+        .limit(20)
+        .get();
+      
+      publicTemplatesQuery.forEach(doc => {
+        templates.push({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate() || null,
+          updatedAt: doc.data().updatedAt?.toDate() || null
+        });
+      });
+    }
+    
+    return templates;
+  } catch (error) {
+    console.error('Error fetching job templates:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   analyzeJobRequirements,
   generateJobDescription,
-  saveJobTemplate
+  saveJobTemplate,
+  getJobTemplates
 };

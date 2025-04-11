@@ -195,3 +195,119 @@ function generatePromptForCredentialType(credentialType, documentText) {
 module.exports = {
   analyzeDocumentWithClaude
 };
+
+/**
+ * Analyzes job requirements and suggests appropriate experience levels
+ * @param {object} jobData Job details including title, responsibilities, etc.
+ * @returns {Promise<object>} Analysis results
+ */
+async function analyzeJobRequirements(jobData) {
+  try {
+    // Call Claude with your prompt
+    const response = await anthropic.messages.create({
+      model: "claude-3-haiku-20240307",
+      max_tokens: 1000,
+      system: `You are an expert in job market analysis with deep knowledge of industry standards.
+When analyzing job requirements, carefully check for:
+1. EXPERIENCE INFLATION: Flag when years of experience requested exceeds industry norms
+2. TECHNOLOGY TIMELINE MISMATCHES: Identify when more years are requested than a technology has existed
+3. SKILL STACKING: Flag when too many diverse skills are required for a single role
+4. QUALIFICATION/RESPONSIBILITY MISMATCH: Identify mismatches between level and responsibilities
+
+Always return well-formed JSON with these fields:
+- yearsOfExperience (string): The suggested years of experience
+- isReasonable (boolean): Whether the overall requirements are reasonable
+- unrealisticRequirements (array): List of any unrealistic requirements
+- suggestions (array): Specific suggestions to improve the description
+- reasoning (string): Explanation of your analysis
+- healthScore (number): A score from 0-100 indicating how realistic the requirements are`,
+      messages: [
+        {
+          role: "user",
+          content: `Analyze this job information:
+          
+Job Title: ${jobData.jobTitle}
+${jobData.department ? `Department: ${jobData.department}` : ''}
+${jobData.industry ? `Industry: ${jobData.industry}` : ''}
+Seniority Level: ${jobData.seniorityLevel || 'Not specified'}
+Key Responsibilities: ${jobData.responsibilities || 'Not provided'}
+Required Skills: ${Array.isArray(jobData.requiredSkills) 
+  ? jobData.requiredSkills.join(', ') 
+  : (jobData.requiredSkills || 'Not provided')}
+
+Please provide:
+1. Appropriate years of experience for this role (e.g., "3-5 years")
+2. Analysis of whether the requirements are reasonable
+3. Identification of any unrealistic expectations
+4. Specific suggestions to make requirements more balanced
+5. Explanation of your reasoning
+
+IMPORTANT: Return ONLY valid JSON with no additional text.`
+        }
+      ]
+    });
+    
+    // Parse response as JSON
+    try {
+      const analysisData = JSON.parse(response.content[0].text);
+      return analysisData;
+    } catch (parseError) {
+      console.error('Failed to parse Claude response:', parseError);
+      console.log('Raw response:', response.content[0].text);
+      
+      // Return a fallback response
+      return {
+        yearsOfExperience: "3-5 years",
+        isReasonable: true,
+        unrealisticRequirements: [],
+        suggestions: ["Consider reviewing the job requirements manually."],
+        reasoning: "Unable to parse AI response into JSON.",
+        healthScore: 70
+      };
+    }
+  } catch (error) {
+    console.error('AI job analysis error:', error);
+    throw new Error(`Failed to analyze job requirements: ${error.message}`);
+  }
+}
+
+router.post('/analyze-job-description', auth, async (req, res) => {
+  try {
+    const { 
+      jobTitle, 
+      responsibilities, 
+      requiredSkills, 
+      seniorityLevel,
+      department,
+      industry 
+    } = req.body;
+    
+    if (!jobTitle) {
+      return res.status(400).json({ error: 'Job title is required' });
+    }
+    
+    // Call the AI service
+    const analysis = await analyzeJobRequirements({
+      jobTitle, 
+      responsibilities, 
+      requiredSkills, 
+      seniorityLevel,
+      department,
+      industry
+    });
+    
+    res.json(analysis);
+  } catch (error) {
+    console.error('Error analyzing job description:', error);
+    res.status(500).json({ 
+      error: 'Failed to analyze job description',
+      message: error.message
+    });
+  }
+});
+// Export the new function
+module.exports = {
+  analyzeDocumentWithClaude,
+  // Add your new function
+  analyzeJobRequirements
+};

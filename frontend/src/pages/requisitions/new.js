@@ -11,6 +11,7 @@ import JobPostingPayment from '../../components/employer/JobPostingPayment';
 import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import StripeWrapper from '../../components/stripe/StripeWrapper';
 import AIJobDescriptionGenerator from '../../components/employer/AIJobDescriptionGenerator';
+import ExperienceCalculator from '../../components/employer/ExperienceCalculator';
 
 
 
@@ -35,6 +36,7 @@ export default function NewRequisition() {
   const [showPayment, setShowPayment] = useState(true); // Set to true for testing
   const [requisitionId, setRequisitionId] = useState('test-requisition-id'); // Dummy ID for testing
   const [showAITool, setShowAITool] = useState(false);
+  const [experienceRequirement, setExperienceRequirement] = useState('');
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({
@@ -130,6 +132,18 @@ const handleAIGeneratedJobDescription = (generatedData) => {
   });
   
   setShowAITool(false); // Hide the AI tool after using it
+};
+
+const handleAnalysisComplete = (analysis) => {
+  if (analysis && analysis.yearsOfExperience) {
+    setExperienceRequirement(analysis.yearsOfExperience);
+    
+    // Optionally update your form data
+    setFormData(prev => ({
+      ...prev,
+      experienceRequired: analysis.yearsOfExperience
+    }));
+  }
 };
   
   return (
@@ -227,6 +241,31 @@ const handleAIGeneratedJobDescription = (generatedData) => {
                       placeholder="e.g., JavaScript, React, Node.js"
                     />
                   </div>
+                  {/* Add the Experience Calculator here */}
+<ExperienceCalculator
+  jobTitle={formData.title}
+  responsibilities={formData.description}
+  requiredSkills={formData.requiredSkills}
+  seniorityLevel={formData.employmentType}
+  onAnalysisComplete={handleAnalysisComplete}
+/>
+
+{/* If you have an experience field, it will be auto-populated */}
+<div className="mb-4">
+  <label htmlFor="experienceRequired" className="block text-sm font-medium text-gray-700">
+    Experience Required
+  </label>
+  <input
+    type="text"
+    id="experienceRequired"
+    name="experienceRequired"
+    value={formData.experienceRequired || experienceRequirement}
+    onChange={handleChange}
+    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+    placeholder={experienceRequirement || "e.g., 3-5 years"}
+  />
+</div>
+                  
                   
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                     <div>
