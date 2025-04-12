@@ -11,6 +11,8 @@ import { auth } from '../lib/firebase';
 export const analyzeJobRequirements = async (jobData) => {
     
     try {
+    
+        const token = await auth.currentUser.getIdToken(true); // Add this line to force token refresh
       // Make sure the URL is correct - this should match your server route
       const response = await fetch('/api/ai-job-analysis/analyze', {
         method: 'POST',

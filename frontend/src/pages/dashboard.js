@@ -7,6 +7,7 @@ import Head from 'next/head';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 
+
 export default function Dashboard() {
   const router = useRouter();
   const [credentials, setCredentials] = useState([]);
@@ -19,6 +20,8 @@ export default function Dashboard() {
   });
   const [filterType, setFilterType] = useState('All Types');
   const [filterStatus, setFilterStatus] = useState('All Status');
+
+
   
   // Safely access auth context
   let auth = { currentUser: null, loading: true, logout: () => {}, userRole: null };
@@ -35,9 +38,12 @@ export default function Dashboard() {
   
   const { currentUser, userRole, logout } = auth;
 
+  
+
   useEffect(() => {
     const checkRole = async () => {
       if (currentUser) {
+        await currentUser.getIdToken(true);
         const token = await currentUser.getIdTokenResult();
         console.log("Auth Token Claims:", token.claims);
         console.log("Role from claims:", token.claims.role || "No role in claims");
