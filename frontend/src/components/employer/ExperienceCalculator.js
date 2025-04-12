@@ -2,6 +2,8 @@
 import React, { useState } from 'react';
 import { analyzeJobRequirements, submitAnalysisFeedback } from '../../services/aiJobAnalysisService';
 
+const DEBUG_MODE = process.env.NODE_ENV !== 'production';
+
 const ExperienceCalculator = ({ 
   jobTitle, 
   responsibilities, 
@@ -28,6 +30,29 @@ const ExperienceCalculator = ({
     try {
       setLoading(true);
       setError(null);
+      
+      if (DEBUG_MODE) {
+        // Simulate API delay
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        const debugResult = {
+          yearsOfExperience: "3-5 years",
+          isReasonable: true,
+          unrealisticRequirements: [],
+          suggestions: ["The requirements seem reasonable."],
+          reasoning: "Based on the job title and responsibilities, 3-5 years of experience is appropriate.",
+          healthScore: 85
+        };
+        
+        setAnalysis(debugResult);
+        
+        if (onAnalysisComplete) {
+          onAnalysisComplete(debugResult);
+        }
+        
+        setLoading(false);
+        return;
+      }
 
       const result = await analyzeJobRequirements({
         jobTitle,
@@ -50,6 +75,7 @@ const ExperienceCalculator = ({
       setLoading(false);
     }
   };
+  
 
   // Handle user feedback on the analysis
   const handleFeedback = (isAccurate) => {

@@ -6,6 +6,8 @@ const { admin } = require('./firebase/admin');
 const requisitionRoutes = require('./routes/requisitions');
 const paymentRoutes = require('./routes/payments');
 const aiJobDescriptionRoutes = require('./routes/ai-job-description');
+const aiJobAnalysisRoutes = require('./routes/ai-job-analysis');
+
 
 // Load environment variables
 dotenv.config();
@@ -23,6 +25,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/api/debug', require('./routes/debug'));
 app.use('/api/requisitions', requisitionRoutes);
+app.use('/api/ai-job-analysis', aiJobAnalysisRoutes);
 
 // Authentication middleware
 const { auth } = require('./middleware/auth');
